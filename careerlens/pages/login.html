@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login — CareerLens</title>
+  <link rel="stylesheet" href="../css/shared.css"/>
+  <link rel="stylesheet" href="../css/auth.css"/>
+</head>
+<body class="auth-page">
+  <div class="auth-wrap">
+    <!-- LEFT PANEL -->
+    <div class="auth-left">
+      <a class="auth-logo" href="../index.html">
+        <div class="nav-brand-dot"></div>CareerLens
+      </a>
+      <div class="auth-left-body">
+        <h1 class="auth-left-title">Unlock your<br/><em>career path.</em></h1>
+        <p class="auth-left-sub">Sign in to access your personalized resume analysis, skill reports, and learning roadmap.</p>
+        <div class="auth-testimonials">
+          <div class="testimonial">
+            <p class="t-quote">"CareerLens helped me identify I was only 2 skills away from a Senior Engineer role. Landed the job in 6 weeks."</p>
+            <div class="t-author">
+              <div class="t-avatar">A</div>
+              <div><div class="t-name">Aditya K.</div><div class="t-role">Software Engineer</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL (FORM) -->
+    <div class="auth-right">
+      <div class="auth-form-wrap page-fade">
+        <div class="auth-form-header">
+          <h2 class="auth-form-title">Welcome back</h2>
+          <p class="auth-form-sub">Don't have an account? <a href="register.html" class="auth-link">Sign up free</a></p>
+        </div>
+
+        <div class="auth-demo-hint">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" stroke-width="1.2"/><path d="M7 6V10M7 4.5V5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+          Demo: use any email + any 6+ character password after registering.
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">Email address</label>
+          <input class="form-input" id="email" type="email" placeholder="you@example.com" autocomplete="email"/>
+          <div class="error-msg" id="emailErr"></div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">
+            Password
+            <a href="#" class="form-label-link" onclick="forgotPassword(event)">Forgot password?</a>
+          </label>
+          <div class="input-pw-wrap">
+            <input class="form-input" id="password" type="password" placeholder="••••••••" autocomplete="current-password"/>
+            <button class="pw-toggle" type="button" onclick="togglePw('password', this)" aria-label="Show password">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8C2 8 4.5 3.5 8 3.5C11.5 3.5 14 8 14 8C14 8 11.5 12.5 8 12.5C4.5 12.5 2 8 2 8Z" stroke="currentColor" stroke-width="1.2"/><circle cx="8" cy="8" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+            </button>
+          </div>
+          <div class="error-msg" id="passwordErr"></div>
+        </div>
+
+        <div class="form-check-row">
+          <label class="form-check">
+            <input type="checkbox" id="remember"/>
+            <span>Remember me</span>
+          </label>
+        </div>
+
+        <button class="btn btn-accent btn-full" style="margin-top:1.25rem" id="loginBtn" onclick="doLogin()">
+          <span id="loginBtnText">Sign In</span>
+        </button>
+
+        <div class="auth-divider"><span>or continue with</span></div>
+
+        <div class="social-btns">
+          <button class="social-btn" onclick="demoLogin('google')">
+            <svg width="16" height="16" viewBox="0 0 16 16"><path d="M15.5 8.2c0-.6-.1-1.2-.2-1.7H8v3.3h4.2c-.2 1-.8 1.8-1.6 2.4v2h2.6c1.5-1.4 2.3-3.4 2.3-6z" fill="#4285F4"/><path d="M8 16c2.2 0 4-.7 5.3-2l-2.6-2c-.7.5-1.6.8-2.7.8-2.1 0-3.8-1.4-4.4-3.3H1v2.1C2.3 14.2 5 16 8 16z" fill="#34A853"/><path d="M3.6 9.5C3.5 9.1 3.4 8.5 3.4 8c0-.5.1-1.1.2-1.5V4.4H1C.4 5.5 0 6.7 0 8c0 1.3.4 2.5 1 3.6l2.6-2.1z" fill="#FBBC05"/><path d="M8 3.2c1.2 0 2.2.4 3 1.2l2.2-2.2C11.8.8 10.1 0 8 0 5 0 2.3 1.8 1 4.4l2.6 2.1C4.2 4.6 5.9 3.2 8 3.2z" fill="#EA4335"/></svg>
+            Google
+          </button>
+          <button class="social-btn" onclick="demoLogin('github')">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.6 0 0 3.6 0 8c0 3.5 2.3 6.5 5.5 7.6.4.1.5-.2.5-.4v-1.4c-2.2.5-2.7-1.1-2.7-1.1-.4-.9-.9-1.2-.9-1.2-.7-.5.1-.5.1-.5.8.1 1.2.8 1.2.8.7 1.2 1.9.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-4 0-.9.3-1.6.8-2.2-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.2.8.6-.2 1.3-.3 2-.3s1.4.1 2 .3c1.5-1 2.2-.8 2.2-.8.4 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.2 0 3.1-1.9 3.8-3.7 4 .3.3.6.8.6 1.5v2.3c0 .2.1.5.5.4C13.7 14.5 16 11.5 16 8c0-4.4-3.6-8-8-8z"/></svg>
+            GitHub
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/shared.js"></script>
+  <script>
+    // If already logged in, redirect
+    if (Auth.getSession()) window.location.href = '../pages/analyze.html';
+
+    function doLogin() {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      clearAllErrors([['email','emailErr'],['password','passwordErr']]);
+      let valid = true;
+      if (!email) { setFieldError('email','emailErr','Email is required.'); valid=false; }
+      else if (!validateEmail(email)) { setFieldError('email','emailErr','Please enter a valid email.'); valid=false; }
+      if (!password) { setFieldError('password','passwordErr','Password is required.'); valid=false; }
+      if (!valid) return;
+
+      const btn = document.getElementById('loginBtn');
+      const btnText = document.getElementById('loginBtnText');
+      btn.disabled = true;
+      btnText.innerHTML = '<span class="spinner"></span> Signing in...';
+
+      setTimeout(() => {
+        const result = Auth.login(email, password);
+        if (result.ok) {
+          showToast('Welcome back, ' + result.user.name + '!', 'success');
+          setTimeout(() => window.location.href = '../pages/analyze.html', 600);
+        } else {
+          setFieldError('email','emailErr', result.msg);
+          setFieldError('password','passwordErr', ' ');
+          btn.disabled = false;
+          btnText.textContent = 'Sign In';
+        }
+      }, 800);
+    }
+
+    function demoLogin(provider) {
+      showToast(`${provider} login coming soon! Use email/password for now.`, 'default');
+    }
+
+    function forgotPassword(e) {
+      e.preventDefault();
+      showToast('Password reset link sent to your email (demo).', 'success');
+    }
+
+    function togglePw(id, btn) {
+      const inp = document.getElementById(id);
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+      btn.style.opacity = inp.type === 'text' ? '1' : '0.5';
+    }
+
+    // Enter key support
+    document.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  </script>
+</body>
+</html>
