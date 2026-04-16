@@ -6,6 +6,9 @@
   <title>Analyze Resume — CareerLens</title>
   <link rel="stylesheet" href="../css/shared.css"/>
   <link rel="stylesheet" href="../css/pages.css"/>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 </head>
 <body>
   <div id="navbarPlaceholder"></div>
@@ -13,19 +16,18 @@
   <div class="page-container page-fade">
     <div class="page-header">
       <div class="page-eyebrow">Step 01 — Resume Analysis</div>
-      <h1 class="page-title">Upload your resume</h1>
-      <p class="page-sub">Paste or upload your resume and let our AI do the heavy lifting.</p>
+      <h1 class="page-title">Upload your <em>resume</em></h1>
+      <p class="page-sub">Paste or upload your resume and let our AI extract skills, match roles, and build your roadmap.</p>
     </div>
 
     <div class="analyze-layout">
-      <!-- UPLOAD PANEL -->
       <div class="upload-panel">
         <div class="drop-zone" id="dropzone"
           ondragover="event.preventDefault();this.classList.add('dz-over')"
           ondragleave="this.classList.remove('dz-over')"
           ondrop="handleDrop(event)"
           onclick="document.getElementById('fileInput').click()">
-          <input type="file" id="fileInput" accept=".pdf,.txt,.docx" style="display:none" onchange="handleFile(event)"/>
+          <input type="file" id="fileInput" accept=".txt,.md,.pdf,.docx" style="display:none" onchange="handleFile(event)"/>
           <div class="dz-icon">
             <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
               <rect x="4" y="2" width="22" height="28" rx="4" stroke="currentColor" stroke-width="1.5"/>
@@ -35,7 +37,7 @@
             </svg>
           </div>
           <p class="dz-title">Drop your resume here</p>
-          <p class="dz-sub">PDF, DOCX, or TXT &nbsp;·&nbsp; or click to browse</p>
+          <p class="dz-sub">PDF, DOCX, TXT, or MD · or click to browse</p>
           <div class="dz-filename" id="dzFilename" style="display:none"></div>
         </div>
 
@@ -43,16 +45,14 @@
 
         <div style="position:relative">
           <textarea id="resumeText" class="resume-ta"
-            placeholder="Paste your resume here...&#10;&#10;Example:&#10;Jane Smith | Software Engineer | jane@email.com&#10;&#10;EXPERIENCE&#10;Senior Engineer at TechCorp (2021-Present)&#10;- Built React dashboards, Node.js APIs, deployed on AWS&#10;- Led team of 5, reduced latency by 40%&#10;&#10;SKILLS&#10;Python, JavaScript, React, Node.js, AWS, Docker, PostgreSQL, Redis, Git&#10;&#10;EDUCATION&#10;B.Tech Computer Science, 2019"></textarea>
+            placeholder="Paste your resume here..."></textarea>
           <div class="ta-char-count" id="charCount">0 characters</div>
         </div>
-
-
 
         <div class="analyze-footer">
           <div class="privacy-note">
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1L2 3.25V6.5C2 9.25 4 11.75 6.5 12C9 11.75 11 9.25 11 6.5V3.25L6.5 1Z" stroke="currentColor" stroke-width="1.2"/></svg>
-            Processed securely
+            Processed securely via Claude AI
           </div>
           <button class="btn btn-accent btn-lg" id="analyzeBtn" onclick="runAnalysis()">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L10 6L14 7L11 10L12 14L8 12L4 14L5 10L2 7L6 6L8 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
@@ -61,46 +61,19 @@
         </div>
       </div>
 
-      <!-- TIPS PANEL -->
       <div class="tips-panel">
         <div class="tips-card">
           <div class="tips-title">Tips for best results</div>
           <ul class="tips-list">
-            <li>Include your full work history with job titles and dates</li>
-            <li>List all technical skills, tools, and programming languages</li>
-            <li>Mention soft skills like leadership, communication</li>
-            <li>Include education, certifications, and projects</li>
-            <li>Use plain text — bullet points work great</li>
+            <li>Include your full work history and titles</li>
+            <li>List all technical skills and tools</li>
+            <li>Standard PDF and Word layouts work best</li>
           </ul>
-        </div>
-
-        <div class="tips-card" style="margin-top:14px">
-          <div class="tips-title">What you'll get</div>
-          <div class="result-preview-list">
-            <div class="rp-item"><span class="rp-dot rp-dot-green"></span>Extracted skill list with proficiency scores</div>
-            <div class="rp-item"><span class="rp-dot rp-dot-blue"></span>3 matched career roles with fit %</div>
-            <div class="rp-item"><span class="rp-dot rp-dot-red"></span>Missing skills for each role</div>
-            <div class="rp-item"><span class="rp-dot rp-dot-amber"></span>Recommendation score (0–100)</div>
-            <div class="rp-item"><span class="rp-dot" style="background:var(--accent)"></span>Week-by-week learning roadmap</div>
-          </div>
-        </div>
-
-        <!-- Previous Analysis -->
-        <div id="prevAnalysisCard" style="display:none;margin-top:14px">
-          <div class="tips-card prev-card">
-            <div class="tips-title">Previous Analysis</div>
-            <div id="prevAnalysisMeta"></div>
-            <div class="prev-actions">
-              <a class="btn btn-outline" href="skills.html" style="padding:7px 14px;font-size:13px">View Results</a>
-              <button class="btn btn-outline" onclick="AnalysisStore.clear();location.reload()" style="padding:7px 14px;font-size:13px">Clear</button>
-            </div>
-          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- LOADING OVERLAY -->
   <div class="loading-overlay" id="loadingOverlay" style="display:none">
     <div class="loading-modal">
       <div class="loading-spinner-wrap">
@@ -108,183 +81,155 @@
         <div class="loading-ring-inner"></div>
       </div>
       <h3 class="loading-title">Analyzing your resume...</h3>
-      <p class="loading-sub" id="loadingStep">Sending to AI engine</p>
+      <p class="loading-sub">Powered by Claude AI</p>
       <div class="loading-steps">
-        <div class="ls active" id="ls1">
-          <div class="ls-dot"></div><span>Parsing resume content</span>
-        </div>
-        <div class="ls" id="ls2">
-          <div class="ls-dot"></div><span>Extracting skills</span>
-        </div>
-        <div class="ls" id="ls3">
-          <div class="ls-dot"></div><span>Matching career roles</span>
-        </div>
-        <div class="ls" id="ls4">
-          <div class="ls-dot"></div><span>Building roadmap</span>
-        </div>
+        <div class="ls active" id="ls1"><div class="ls-dot"></div><span>Parsing resume content</span></div>
+        <div class="ls" id="ls2"><div class="ls-dot"></div><span>Extracting skills</span></div>
+        <div class="ls" id="ls3"><div class="ls-dot"></div><span>Matching career roles</span></div>
+        <div class="ls" id="ls4"><div class="ls-dot"></div><span>Building roadmap</span></div>
       </div>
     </div>
   </div>
 
   <script src="../js/shared.js"></script>
   <script>
-    const session = Auth.requireAuth();
+    // --- SETTINGS ---
+    Auth.requireAuth();
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
     document.addEventListener('DOMContentLoaded', () => {
       initNavbar('analyze');
-
-      // Show previous analysis if exists
-      const prev = AnalysisStore.get();
-      if (prev) {
-        document.getElementById('prevAnalysisCard').style.display = 'block';
-        document.getElementById('prevAnalysisMeta').innerHTML = `
-          <p style="font-size:13px;color:var(--muted);margin-bottom:10px">
-            <strong>${prev.name}</strong> &nbsp;·&nbsp; ${prev.experience_years} yrs &nbsp;·&nbsp; Score: ${prev.overall_score}/100
-          </p>`;
-      }
-
-
     });
 
-    // Char count
     document.getElementById('resumeText').addEventListener('input', function() {
-      document.getElementById('charCount').textContent = this.value.length + ' characters';
+      document.getElementById('charCount').textContent = this.value.length.toLocaleString() + ' characters';
     });
 
+    // --- FILE HANDLING ---
     function handleDrop(e) {
       e.preventDefault();
       document.getElementById('dropzone').classList.remove('dz-over');
       const file = e.dataTransfer.files[0];
-      if (file) readFile(file);
+      if (file) processFile(file);
     }
-    function handleFile(e) { readFile(e.target.files[0]); }
-    function readFile(file) {
+
+    function handleFile(e) {
+      const file = e.target.files[0];
+      if (file) processFile(file);
+    }
+
+    async function processFile(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
       const fn = document.getElementById('dzFilename');
-      fn.textContent = '📄 ' + file.name; fn.style.display = 'block';
-      const reader = new FileReader();
-      reader.onload = ev => {
-        document.getElementById('resumeText').value = ev.target.result;
-        document.getElementById('charCount').textContent = ev.target.result.length + ' characters';
-      };
-      reader.readAsText(file);
+      fn.textContent = '⏳ Processing ' + file.name + '...';
+      fn.style.display = 'block';
+
+      try {
+        let text = "";
+        if (ext === 'pdf') text = await parsePDF(file);
+        else if (ext === 'docx') text = await parseDOCX(file);
+        else text = await parseText(file);
+
+        document.getElementById('resumeText').value = text;
+        document.getElementById('charCount').textContent = text.length.toLocaleString() + ' characters';
+        fn.textContent = '✅ ' + file.name;
+      } catch (err) {
+        showToast("Error reading file", "error");
+      }
+    }
+
+    async function parsePDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return text;
+    }
+
+    async function parseDOCX(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    }
+
+    function parseText(file) {
+      return new Promise(res => {
+        const r = new FileReader();
+        r.onload = e => res(e.target.result);
+        r.readAsText(file);
+      });
     }
 
     function advanceStep(n) {
-      for (let i = 1; i < n; i++) { const el = document.getElementById('ls'+i); if(el){el.classList.remove('active');el.classList.add('done');} }
-      const cur = document.getElementById('ls'+n); if(cur) cur.classList.add('active');
-    }
-
-    async function runAnalysis() {
-    const text = document.getElementById('resumeText').value.trim();
-    const apiKey = "YOUR_GEMINI_API_KEY"; // 🔑 add your Gemini key
-
-  if (!text) { 
-    showToast('Please paste your resume text or upload a file.','error'); 
-    return; 
-  }
-  
-  document.getElementById('loadingOverlay').style.display = 'flex';
-  document.getElementById('analyzeBtn').disabled = true;
-
-  const stepTimers = [
-    setTimeout(() => advanceStep(2), 1000),
-    setTimeout(() => advanceStep(3), 2200),
-    setTimeout(() => advanceStep(4), 3400)
-  ];
-
-  try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: `Analyze this resume. Return ONLY valid JSON with NO markdown or code blocks:
-
-{
-  "name": "Full Name or Unknown",
-  "title": "Current or Target Role",
-  "experience_years": 3,
-  "summary": "Two concise sentences summarizing their career profile.",
-  "overall_score": 72,
-  "extracted_skills": [
-    {"name": "Python", "level": 85, "category": "technical"},
-    {"name": "React", "level": 70, "category": "technical"},
-    {"name": "Docker", "level": 60, "category": "tool"},
-    {"name": "Leadership", "level": 75, "category": "soft"}
-  ],
-  "role_matches": [
-    {
-      "title": "Full Stack Developer",
-      "match_score": 82,
-      "salary_range": "$90k–$130k",
-      "description": "One sentence describing this role.",
-      "required_skills": ["React", "Node.js", "PostgreSQL"],
-      "missing_skills": ["GraphQL", "TypeScript"]
-    },
-    {
-      "title": "Backend Engineer",
-      "match_score": 74,
-      "salary_range": "$95k–$140k",
-      "description": "One sentence describing this role.",
-      "required_skills": ["Python", "REST APIs", "Docker"],
-      "missing_skills": ["Kubernetes", "Go"]
-    },
-    {
-      "title": "DevOps Engineer",
-      "match_score": 61,
-      "salary_range": "$100k–$150k",
-      "description": "One sentence describing this role.",
-      "required_skills": ["Docker", "CI/CD", "Cloud"],
-      "missing_skills": ["Terraform", "Kubernetes", "Helm"]
-    }
-  ],
-  "learning_roadmap": [
-    {"week": "Week 1–2", "topic": "Topic Name", "resources": "Coursera, freeCodeCamp", "priority": "high"},
-    {"week": "Week 3–4", "topic": "Topic Name", "resources": "Official docs, YouTube", "priority": "high"},
-    {"week": "Week 5–6", "topic": "Topic Name", "resources": "Udemy, GitHub projects", "priority": "medium"},
-    {"week": "Week 7–8", "topic": "Topic Name", "resources": "Books, tutorials", "priority": "medium"},
-    {"week": "Week 9–10", "topic": "Topic Name", "resources": "Projects, blogs", "priority": "low"},
-    {"week": "Week 11–12", "topic": "Topic Name", "resources": "Communities, mentorship", "priority": "low"}
-  ]
-}
-
-Rules: exactly 3 role_matches, exactly 6 roadmap steps, skill levels 0–100, scores 0–100.
-
-Resume:
-${text.substring(0, 3000)}`
-            }]
-          }]
-        })
+      for (let i = 1; i < n; i++) {
+        const el = document.getElementById('ls' + i);
+        if (el) { el.classList.remove('active'); el.classList.add('done'); }
       }
-    );
+      const cur = document.getElementById('ls' + n);
+      if (cur) cur.classList.add('active');
+    }
 
-    stepTimers.forEach(clearTimeout);
+    // --- MAIN ANALYSIS (API CALL) ---
+    async function runAnalysis() {
+      const text = document.getElementById('resumeText').value.trim();
+      if (text.length < 50) {
+        showToast('Please provide a longer resume text.', 'error');
+        return;
+      }
 
-    const data = await res.json();
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      document.getElementById('analyzeBtn').disabled = true;
 
-    // ✅ Gemini response format
-    let raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const stepTimers = [
+        setTimeout(() => advanceStep(2), 1500),
+        setTimeout(() => advanceStep(3), 3500),
+        setTimeout(() => advanceStep(4), 5500)
+      ];
 
-    raw = raw.replace(/```json|```/g, '').trim();
+      const prompt = `You are an expert career counselor. Analyze this resume and return ONLY a valid JSON object. 
+      JSON Structure: {"name":"","title":"","experience_years":0,"summary":"","overall_score":0,"extracted_skills":[],"role_matches":[{"title":"","match_score":0,"reason":"","required_skills":[],"missing_skills":[]}],"learning_roadmap":[{"week":"Week 1","topic":"","description":"","priority":"High","tasks":[]}]}
+      Resume: ${text.substring(0, 5000)}`;
 
-    const parsed = JSON.parse(raw);
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ' ', // <--- PASTE YOUR KEY HERE
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-calls': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20240620',
+            max_tokens: 3000,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
 
-    AnalysisStore.save(parsed);
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error?.message || "Connection failed");
+        }
 
-    document.getElementById('loadingOverlay').style.display = 'none';
+        const data = await response.json();
+        const raw = data.content[0].text;
+        const cleanJson = raw.match(/\{[\s\S]*\}/)[0];
+        const parsed = JSON.parse(cleanJson);
 
-    showToast('Analysis complete! Redirecting...', 'success');
-    setTimeout(() => window.location.href = 'skills.html', 700);
+        AnalysisStore.save(parsed);
+        window.location.href = 'skills.html';
 
-  } catch (err) {
-    stepTimers.forEach(clearTimeout);
-    document.getElementById('loadingOverlay').style.display = 'none';
-    document.getElementById('analyzeBtn').disabled = false;
-    console.error(err);
-    showToast('Analysis failed: ' + (err.message || 'Check your API key and try again.'), 'error');
-  }
-}
+      } catch (err) {
+        stepTimers.forEach(clearTimeout);
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('analyzeBtn').disabled = false;
+        alert("Analysis failed: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
