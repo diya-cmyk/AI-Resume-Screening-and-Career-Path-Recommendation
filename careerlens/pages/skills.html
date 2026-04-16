@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Skills — CareerLens</title>
+  <link rel="stylesheet" href="../css/shared.css"/>
+  <link rel="stylesheet" href="../css/pages.css"/>
+</head>
+<body>
+  <div id="navbarPlaceholder"></div>
+  <div class="page-container page-fade" id="pageContent">
+    <div class="empty-gate" id="emptyGate" style="display:none">
+      <div class="empty-icon-lg">◈</div>
+      <h2>No analysis yet</h2>
+      <p>Upload and analyze your resume first to see your skills report.</p>
+      <a class="btn btn-accent" href="analyze.html">Go to Analyze</a>
+    </div>
+    <div id="mainContent"></div>
+  </div>
+
+  <script src="../js/shared.js"></script>
+  <script>
+    Auth.requireAuth();
+    document.addEventListener('DOMContentLoaded', () => {
+      initNavbar('skills');
+      const d = AnalysisStore.get();
+      if (!d) { document.getElementById('emptyGate').style.display='flex'; return; }
+      render(d);
+    });
+
+    function render(d) {
+      const tech  = d.extracted_skills.filter(s => s.category === 'technical');
+      const tools = d.extracted_skills.filter(s => s.category === 'tool');
+      const soft  = d.extracted_skills.filter(s => s.category === 'soft');
+      const scoreColor = d.overall_score >= 75 ? 'var(--green)' : d.overall_score >= 50 ? 'var(--amber)' : 'var(--red)';
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="page-header">
+          <div class="page-eyebrow">Step 02 — Extracted Skills</div>
+          <h1 class="page-title">Your skill profile</h1>
+        </div>
+
+        <!-- Summary bar -->
+        <div class="summary-bar">
+          <div class="summary-info">
+            <div class="summary-name">${d.name}</div>
+            <div class="summary-meta">${d.title} &nbsp;·&nbsp; ${d.experience_years} years experience</div>
+            <p class="summary-text">${d.summary}</p>
+          </div>
+          <div class="summary-score">
+            ${scoreRingHTML(d.overall_score, 90, 7, scoreColor, '/ 100')}
+            <div class="summary-score-lbl">Overall Fit</div>
+          </div>
+        </div>
+
+        <!-- KPI row -->
+        <div class="kpi-row">
+          <div class="kpi-card"><div class="kpi-n">${d.extracted_skills.length}</div><div class="kpi-l">Total Skills</div></div>
+          <div class="kpi-card"><div class="kpi-n">${tech.length}</div><div class="kpi-l">Technical</div></div>
+          <div class="kpi-card"><div class="kpi-n">${tools.length}</div><div class="kpi-l">Tools</div></div>
+          <div class="kpi-card"><div class="kpi-n">${soft.length}</div><div class="kpi-l">Soft Skills</div></div>
+        </div>
+
+        <!-- Skills grid -->
+        <div class="skills-grid">
+          ${tech.length ? `
+          <div class="card">
+            <div class="card-section-title">Technical Skills</div>
+            ${tech.map((s,i) => skillBar(s, i)).join('')}
+          </div>` : ''}
+
+          <div>
+            ${tools.length ? `
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-section-title">Tools & Platforms</div>
+              <div class="badges-wrap">
+                ${tools.map(s => `<span class="badge badge-blue">${s.name}</span>`).join('')}
+              </div>
+            </div>` : ''}
+            ${soft.length ? `
+            <div class="card">
+              <div class="card-section-title">Soft Skills</div>
+              <div class="badges-wrap">
+                ${soft.map(s => `<span class="badge badge-accent">${s.name}</span>`).join('')}
+              </div>
+            </div>` : ''}
+          </div>
+        </div>
+
+        <div class="page-nav-row">
+          <a class="btn btn-outline" href="analyze.html">← Re-analyze</a>
+          <a class="btn btn-accent" href="roles.html">View Role Matches →</a>
+        </div>
+      `;
+
+      // Animate bars
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          document.querySelectorAll('.skill-bar-fill[data-w]').forEach(el => {
+            el.style.width = el.dataset.w + '%';
+          });
+        }, 120);
+      });
+    }
+
+    const BAR_COLORS = ['#c8502a','#1d4ed8','#2d6a4f','#92400e','#7c3aed'];
+    function skillBar(s, i) {
+      return `<div class="skill-bar-item">
+        <div class="skill-bar-row">
+          <span class="skill-bar-name">${s.name}</span>
+          <span class="skill-bar-pct">${s.level}%</span>
+        </div>
+        <div class="skill-bar-track">
+          <div class="skill-bar-fill" data-w="${s.level}" style="width:0%;background:${BAR_COLORS[i % BAR_COLORS.length]}"></div>
+        </div>
+      </div>`;
+    }
+  </script>
+</body>
+</html>
