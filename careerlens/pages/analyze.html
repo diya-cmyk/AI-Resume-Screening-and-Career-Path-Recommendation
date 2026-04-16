@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analyze Resume — CareerLens</title>
+  <link rel="stylesheet" href="../css/shared.css"/>
+  <link rel="stylesheet" href="../css/pages.css"/>
+  
+  <!-- PDF and DOCX Parsing Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+</head>
+<body>
+  <div id="navbarPlaceholder"></div>
+
+  <div class="page-container page-fade">
+    <div class="page-header">
+      <div class="page-eyebrow">Step 01 — Resume Analysis</div>
+      <h1 class="page-title">Upload your <em>resume</em></h1>
+      <p class="page-sub">Paste or upload your resume and let our AI extract skills, match roles, and build your roadmap.</p>
+    </div>
+
+    <div class="analyze-layout">
+      <div class="upload-panel">
+        <!-- Drop Zone -->
+        <div class="drop-zone" id="dropzone">
+          <input type="file" id="fileInput" accept=".txt,.md,.pdf,.docx" style="display:none"/>
+          <div class="dz-icon">
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+              <rect x="4" y="2" width="22" height="28" rx="4" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M26 2L32 8V30C32 31.1 31.1 32 30 32H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M26 2V8H32" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M11 19V27M11 19L8 22M11 19L14 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <p class="dz-title">Drop your resume here</p>
+          <p class="dz-sub">PDF, DOCX, TXT, or MD · or click to browse</p>
+          <div class="dz-filename" id="dzFilename" style="display:none"></div>
+        </div>
+
+        <div class="divider-or"><span>or paste text below</span></div>
+
+        <div style="position:relative">
+          <textarea id="resumeText" class="resume-ta" placeholder="Paste your resume here..."></textarea>
+          <div class="ta-char-count" id="charCount">0 characters</div>
+        </div>
+
+        <div class="analyze-footer">
+          <div class="privacy-note">Processed securely via Claude AI</div>
+          <button class="btn btn-accent btn-lg" id="analyzeBtn" onclick="runAnalysis()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2L10 6L14 7L11 10L12 14L8 12L4 14L5 10L2 7L6 6L8 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+            <span id="analyzeBtnText">Analyze Resume</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tips Section -->
+      <div class="tips-panel">
+        <div class="tips-card">
+          <div class="tips-title">Tips for best results</div>
+          <ul class="tips-list">
+            <li><strong>Work History:</strong> Include full history with clear job titles.</li>
+            <li><strong>Technical Skills:</strong> List specific languages and tools.</li>
+            <li><strong>Formatting:</strong> Use standard fonts and clean layouts.</li>
+            <li><strong>File Type:</strong> PDF and DOCX provide the best results.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay" style="display:none">
+    <div class="loading-modal">
+      <div class="loading-spinner-wrap">
+        <div class="loading-ring"></div>
+        <div class="loading-ring-inner"></div>
+      </div>
+      <h3 class="loading-title">Analyzing your resume...</h3>
+      <p class="loading-sub">Powered by Claude AI</p>
+      <div class="loading-steps">
+        <div class="ls active" id="ls1"><div class="ls-dot"></div><span>Parsing content</span></div>
+        <div class="ls" id="ls2"><div class="ls-dot"></div><span>Extracting skills</span></div>
+        <div class="ls" id="ls3"><div class="ls-dot"></div><span>Matching roles</span></div>
+        <div class="ls" id="ls4"><div class="ls-dot"></div><span>Building roadmap</span></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/shared.js"></script>
+  
+  <script type="module">
+    import { auth, db, storage } from "../js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+    import { collection, addDoc } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+    import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-storage.js";
+
+    let currentUser = null;
+    let selectedFile = null;
+
+    // --- 1. AUTH PROTECTION ---
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        window.location.href = 'login.html';
+      } else {
+        currentUser = user;
+        initNavbar('analyze', user);
+        const logBtn = document.getElementById('logoutBtn');
+        if (logBtn) logBtn.onclick = () => Auth.logout(auth);
+      }
+    });
+
+    // Configure PDF.js worker
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    // --- 2. UPLOAD & DROPZONE LOGIC ---
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const resumeTextarea = document.getElementById('resumeText');
+    const filenameDisplay = document.getElementById('dzFilename');
+
+    // Click to browse
+    dropzone.addEventListener('click', () => fileInput.click());
+
+    // File selection event
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) handleFileProcessing(file);
+    });
+
+    // Drag and Drop events
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dz-over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dz-over'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dz-over');
+      const file = e.dataTransfer.files[0];
+      if (file) handleFileProcessing(file);
+    });
+
+    // --- 3. PARSING LOGIC ---
+    async function handleFileProcessing(file) {
+      selectedFile = file;
+      const ext = file.name.split('.').pop().toLowerCase();
+      
+      filenameDisplay.textContent = '⏳ Processing ' + file.name + '...';
+      filenameDisplay.style.display = 'block';
+
+      try {
+        let text = "";
+        if (ext === 'pdf') {
+          text = await parsePDF(file);
+        } else if (ext === 'docx') {
+          text = await parseDOCX(file);
+        } else {
+          text = await file.text(); // For TXT/MD
+        }
+
+        resumeTextarea.value = text;
+        document.getElementById('charCount').textContent = text.length.toLocaleString() + ' characters';
+        filenameDisplay.textContent = '✅ ' + file.name;
+      } catch (err) {
+        console.error(err);
+        showToast("Error reading file", "error");
+        filenameDisplay.textContent = '❌ Error processing file';
+      }
+    }
+
+    async function parsePDF(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let text = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(item => item.str).join(' ') + '\n';
+      }
+      return text;
+    }
+
+    async function parseDOCX(file) {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    }
+
+    // --- 4. UI STEP ANIMATION ---
+    function advanceStep(n) {
+      for (let i = 1; i < n; i++) {
+        const el = document.getElementById('ls' + i);
+        if (el) { el.classList.remove('active'); el.classList.add('done'); }
+      }
+      const cur = document.getElementById('ls' + n);
+      if (cur) cur.classList.add('active');
+    }
+
+    // --- 5. MAIN ANALYSIS (CLAUDE + FIREBASE) ---
+    window.runAnalysis = async function() {
+      const text = resumeTextarea.value.trim();
+      if (text.length < 50) {
+        showToast('Resume content is too short.', 'error');
+        return;
+      }
+
+      document.getElementById('loadingOverlay').style.display = 'flex';
+      document.getElementById('analyzeBtn').disabled = true;
+
+      const stepTimers = [
+        setTimeout(() => advanceStep(2), 1500),
+        setTimeout(() => advanceStep(3), 3500),
+        setTimeout(() => advanceStep(4), 5500)
+      ];
+
+      try {
+        let fileUrl = "";
+        
+        // --- A. Attempt Upload to Firebase Storage ---
+        if (selectedFile) {
+            try {
+                console.log("Attempting file upload...");
+                const storageRef = ref(storage, `resumes/${currentUser.uid}/${Date.now()}_${selectedFile.name}`);
+                const snapshot = await uploadBytes(storageRef, selectedFile);
+                fileUrl = await getDownloadURL(snapshot.ref);
+                console.log("File uploaded successfully.");
+            } catch (storageErr) {
+                // If storage fails due to CORS, we log it but DON'T stop the analysis
+                console.warn("Storage upload failed (CORS issue), continuing with text analysis only.", storageErr);
+            }
+        }
+
+        // --- B. Call Claude AI ---
+        const prompt = `Analyze this resume and return ONLY a valid JSON object. 
+        JSON Structure: {"name":"","title":"","experience_years":0,"summary":"","overall_score":0,"extracted_skills":[{"name":"","category":"technical|tool|soft","level":0}],"role_matches":[{"title":"","match_score":0,"reason":"","required_skills":[],"missing_skills":[]}],"learning_roadmap":[{"week":"Week 1","topic":"","description":"","priority":"High","resources":""}]} 
+        Resume Text: ${text.substring(0, 4500)}`;
+        
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': '', 
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-calls': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-3-5-sonnet-20240620',
+            max_tokens: 3000,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`Claude API: ${errorData.error.message}`);
+        }
+
+        const data = await response.json();
+        const rawJson = data.content[0].text.match(/\{[\s\S]*\}/)[0];
+        const parsed = JSON.parse(rawJson);
+
+        // --- C. Save to Firestore ---
+        await addDoc(collection(db, "analyses"), {
+            userId: currentUser.uid,
+            timestamp: new Date(),
+            resumeUrl: fileUrl,
+            analysisResult: parsed
+        });
+
+        AnalysisStore.save(parsed);
+        window.location.href = 'skills.html';
+
+      } catch (err) {
+        console.error("CRITICAL ERROR:", err);
+        stepTimers.forEach(clearTimeout);
+        document.getElementById('loadingOverlay').style.display = 'none';
+        document.getElementById('analyzeBtn').disabled = false;
+        alert("Error: " + err.message);
+      }
+    };
+
+    // Update character count on typing
+    resumeTextarea.addEventListener('input', () => {
+      document.getElementById('charCount').textContent = resumeTextarea.value.length.toLocaleString() + ' characters';
+    });
+  </script>
+</body>
+</html>

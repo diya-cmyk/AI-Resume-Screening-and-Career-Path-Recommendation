@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Role Matches — CareerLens</title>
+  <link rel="stylesheet" href="../css/shared.css"/>
+  <link rel="stylesheet" href="../css/pages.css"/>
+</head>
+<body>
+  <div id="navbarPlaceholder"></div>
+  <div class="page-container page-fade" id="pageContent">
+    <!-- Empty state if no data found -->
+    <div class="empty-gate" id="emptyGate" style="display:none">
+      <div class="empty-icon-lg">◈</div>
+      <h2>No analysis yet</h2>
+      <p>Analyze your resume first to see matched career roles.</p>
+      <a class="btn btn-accent" href="analyze.html">Go to Analyze</a>
+    </div>
+    
+    <div id="mainContent"></div>
+  </div>
+
+  <!-- LOAD SHARED UTILITIES -->
+  <script src="../js/shared.js"></script>
+  
+  <script type="module">
+    import { auth } from "../js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+    const RING_COLORS = ['#c8502a','#1d4ed8','#2d6a4f'];
+
+    // 1. AUTH PROTECTION & INITIALIZATION
+    onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        // Redirect to login if not authenticated
+        window.location.href = 'login.html';
+      } else {
+        // Initialize navbar with user info
+        initNavbar('roles', user);
+        
+        // Handle Logout Button
+        const logBtn = document.getElementById('logoutBtn');
+        if (logBtn) logBtn.onclick = () => Auth.logout(auth);
+
+        // Load analysis data from LocalStorage
+        const d = AnalysisStore.get();
+        if (!d || !d.role_matches) { 
+          document.getElementById('emptyGate').style.display = 'flex'; 
+        } else {
+          render(d);
+        }
+      }
+    });
+
+    // 2. RENDER ROLES CONTENT
+    function render(d) {
+      const allMissing = [...new Set(d.role_matches.flatMap(r => r.missing_skills || []))];
+
+      document.getElementById('mainContent').innerHTML = `
+        <div class="page-header">
+          <div class="page-eyebrow">Step 03 — Career Role Matches</div>
+          <h1 class="page-title">Your matched roles</h1>
+          <p class="page-sub">Click any role to generate your personalized learning roadmap.</p>
+        </div>
+
+        <!-- All missing skills summary -->
+        <div class="card" style="margin-bottom:1.5rem">
+          <div class="card-section-title">All Missing Skills (across roles)</div>
+          <div class="badges-wrap">
+            ${allMissing.length > 0 
+              ? allMissing.map(s => `<span class="badge badge-red">${s}</span>`).join('') 
+              : '<span class="badge">No missing skills found!</span>'}
+          </div>
+        </div>
+
+        <!-- Role cards list -->
+        <div class="roles-list">
+          ${d.role_matches.map((role, i) => roleCard(role, i)).join('')}
+        </div>
+
+        <div class="page-nav-row">
+          <a class="btn btn-outline" href="skills.html">← Back to Skills</a>
+          <a class="btn btn-accent" href="roadmap.html">View Roadmap →</a>
+        </div>
+      `;
+    }
+
+    // 3. ROLE CARD HELPER
+    function roleCard(role, i) {
+      const color = RING_COLORS[i % RING_COLORS.length];
+      const selected = AnalysisStore.getSelectedRole();
+      const isSelected = selected && selected.title === role.title;
+      
+      return `
+        <div class="role-card-full ${isSelected ? 'role-selected' : ''}" id="rc-${i}" onclick="selectRole(${i})">
+          <div class="role-card-left">
+            <div class="role-rank">#${i+1}</div>
+            <div class="role-card-body">
+              <div class="role-card-title">${role.title}</div>
+              <div class="role-card-desc">${role.reason || role.description || ''}</div>
+              <div class="role-salary">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><circle cx="6.5" cy="6.5" r="5.5" stroke="currentColor" stroke-width="1.1"/><path d="M4.5 8.5C4.5 8.5 5 9.5 6.5 9.5C8 9.5 8.5 8.5 8.5 7.5C8.5 6.5 7.5 6 6.5 6C5.5 6 4.5 5.5 4.5 4.5C4.5 3.5 5 3.5 6.5 3.5C8 3.5 8.5 4.5 8.5 4.5M6.5 3V3.5M6.5 9.5V10" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+                ${role.salary_range || 'Competitive'}
+              </div>
+              <div class="role-skill-sections">
+                <div>
+                  <div class="role-skill-label">Required skills</div>
+                  <div class="badges-wrap">
+                    ${(role.required_skills || []).map(s => `<span class="badge badge-green">${s}</span>`).join('')}
+                  </div>
+                </div>
+                <div>
+                  <div class="role-skill-label">Missing skills</div>
+                  <div class="badges-wrap">
+                    ${(role.missing_skills || []).map(s => `<span class="badge badge-red">${s}</span>`).join('')}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="role-card-right">
+            ${scoreRingHTML(role.match_score, 80, 6, color, 'match')}
+            <div class="role-select-btn" id="rsb-${i}">
+              ${isSelected ? '✓ Selected' : 'Select Role'}
+            </div>
+          </div>
+        </div>`;
+    }
+
+    // 4. SELECTION LOGIC (Attached to window so HTML can call it)
+    window.selectRole = function(i) {
+      const d = AnalysisStore.get();
+      if (!d) return;
+
+      const role = d.role_matches[i];
+      AnalysisStore.setSelectedRole(role);
+
+      // Update UI classes
+      document.querySelectorAll('.role-card-full').forEach((el, idx) => {
+        el.classList.toggle('role-selected', idx === i);
+        const rsb = document.getElementById('rsb-' + idx);
+        if (rsb) rsb.textContent = idx === i ? '✓ Selected' : 'Select Role';
+      });
+
+      showToast('Role selected: ' + role.title, 'success');
+      
+      // Navigate to roadmap after a short delay
+      setTimeout(() => window.location.href = 'roadmap.html', 600);
+    };
+
+  </script>
+</body>
+</html>

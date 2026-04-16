@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CareerLens — AI Resume Screener</title>
+  <link rel="stylesheet" href="css/shared.css"/>
+  <link rel="stylesheet" href="css/home.css"/>
+</head>
+<body>
+  <div id="navbarPlaceholder"></div>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">
+        <span class="eyebrow-dot"></span>AI-Powered Career Intelligence
+      </div>
+      <h1 class="hero-title">
+        Your resume,<br/><em>decoded.</em>
+      </h1>
+      <p class="hero-sub">
+        Upload your resume in seconds. Our AI extracts your skills, matches you to the right roles,
+        identifies gaps, and builds a step-by-step learning roadmap tailored to you.
+      </p>
+      <div class="hero-cta">
+        <a class="btn btn-accent btn-lg" href="pages/analyze.html" id="heroCta">
+          Analyze My Resume
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <a class="btn btn-outline btn-lg" href="pages/login.html" id="heroSecondary">See a Demo</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hstat"><span class="hstat-n">3s</span><span class="hstat-l">Analysis time</span></div>
+        <div class="hstat-sep"></div>
+        <div class="hstat"><span class="hstat-n">50+</span><span class="hstat-l">Job roles matched</span></div>
+        <div class="hstat-sep"></div>
+        <div class="hstat"><span class="hstat-n">100%</span><span class="hstat-l">AI-powered</span></div>
+        <div class="hstat-sep"></div>
+        <div class="hstat"><span class="hstat-n">Free</span><span class="hstat-l">No credit card</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="mock-card">
+        <div class="mock-header">
+          <div class="mock-title">Analysis Report</div>
+          <div class="mock-score-wrap">
+            <div class="mock-score">87</div>
+            <div class="mock-score-lbl">Overall Fit</div>
+          </div>
+        </div>
+        <div class="mock-skills">
+          <div class="mock-skill-row"><span>Python</span><div class="mock-bar"><div style="width:88%"></div></div></div>
+          <div class="mock-skill-row"><span>React</span><div class="mock-bar"><div style="width:72%"></div></div></div>
+          <div class="mock-skill-row"><span>AWS</span><div class="mock-bar"><div style="width:65%"></div></div></div>
+          <div class="mock-skill-row"><span>Docker</span><div class="mock-bar"><div style="width:55%"></div></div></div>
+        </div>
+        <div class="mock-roles">
+          <div class="mock-role active-role">
+            <span>Full Stack Engineer</span>
+            <span class="mock-pct">87%</span>
+          </div>
+          <div class="mock-role">
+            <span>Backend Developer</span>
+            <span class="mock-pct">74%</span>
+          </div>
+          <div class="mock-role">
+            <span>DevOps Engineer</span>
+            <span class="mock-pct">61%</span>
+          </div>
+        </div>
+        <div class="mock-gaps">
+          <div class="mock-gap-label">Missing Skills</div>
+          <div class="mock-gap-badges">
+            <span>TypeScript</span><span>GraphQL</span><span>Kubernetes</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-float float-1">Skill Extracted ✓</div>
+      <div class="hero-float float-2">Role Match Found</div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features">
+    <div class="features-header">
+      <div class="section-eyebrow">What CareerLens Does</div>
+      <h2 class="section-title">Everything you need to<br/>level up your career</h2>
+    </div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feat-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><rect x="3" y="2" width="16" height="18" rx="3" stroke="currentColor" stroke-width="1.5"/><path d="M7 7H15M7 11H15M7 15H11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h3 class="feat-title">Resume Upload</h3>
+        <p class="feat-desc">Drag and drop PDF, DOCX, or TXT files — or paste your resume text directly. Instant parsing.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="1.5"/><path d="M8 11L10 13L14 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 class="feat-title">Skill Extraction</h3>
+        <p class="feat-desc">AI identifies technical skills, tools, frameworks, and soft skills with proficiency estimates.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 17L8 12L12 15L16 9L20 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <h3 class="feat-title">Role Matching</h3>
+        <p class="feat-desc">Get matched to 3 ideal job roles with precision fit scores and salary context.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3V11M11 11L7 8M11 11L15 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 16H18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M4 19H18" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/></svg>
+        </div>
+        <h3 class="feat-title">Gap Analysis</h3>
+        <p class="feat-desc">See exactly which skills are missing for each role with priority levels.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M4 6H18M4 11H14M4 16H10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h3 class="feat-title">Learning Roadmap</h3>
+        <p class="feat-desc">Personalized week-by-week plan with curated resources to bridge your gaps fast.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feat-icon">
+          <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><path d="M11 3C6.6 3 3 6.6 3 11C3 15.4 6.6 19 11 19C15.4 19 19 15.4 19 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><path d="M14 3L19 3L19 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 3L13 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <h3 class="feat-title">Direct Resources</h3>
+        <p class="feat-desc">One-click links to Coursera, LinkedIn Jobs, and top learning platforms for your goals.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="how-it-works">
+    <div class="section-eyebrow" style="text-align:center">How It Works</div>
+    <h2 class="section-title" style="text-align:center">Four steps to clarity</h2>
+    <div class="steps-row">
+      <div class="step">
+        <div class="step-n">01</div>
+        <div class="step-title">Create an Account</div>
+        <div class="step-desc">Sign up free in 30 seconds. No credit card required.</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-n">02</div>
+        <div class="step-title">Upload Resume</div>
+        <div class="step-desc">Drop your file or paste your resume text directly.</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-n">03</div>
+        <div class="step-title">AI Analysis</div>
+        <div class="step-desc">Claude AI extracts skills and matches you to roles in seconds.</div>
+      </div>
+      <div class="step-arrow">→</div>
+      <div class="step">
+        <div class="step-n">04</div>
+        <div class="step-title">Get Your Roadmap</div>
+        <div class="step-desc">Follow a personalized plan to land your dream job.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="cta-section">
+    <h2 class="cta-title">Ready to decode your<br/><em>career potential?</em></h2>
+    <p class="cta-sub">Join thousands of professionals who've found their ideal role with CareerLens.</p>
+    <a class="btn btn-accent btn-lg" href="pages/register.html">Get Started Free</a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <span class="nav-brand-dot"></span> CareerLens
+    </div>
+    <div class="footer-links">
+      <a href="pages/login.html">Login</a>
+      <a href="pages/register.html">Sign Up</a>
+      <a href="pages/analyze.html">Analyze</a>
+    </div>
+    <div class="footer-copy">© 2025 CareerLens. AI-powered career intelligence.</div>
+  </footer>
+
+  <script src="js/shared.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      initNavbar('home');
+      const session = Auth.getSession();
+      if (session) {
+        const cta = document.getElementById('heroCta');
+        const sec = document.getElementById('heroSecondary');
+        if (cta) cta.textContent = 'Continue Analyzing →';
+        if (sec) { sec.textContent = 'My Results'; sec.href = 'pages/skills.html'; }
+      }
+    });
+  </script>
+</body>
+</html>
