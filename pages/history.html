@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>History — CareerLens</title>
+
+  <!-- Your existing CSS -->
+  <link rel="stylesheet" href="../css/shared.css"/>
+  <link rel="stylesheet" href="../css/pages.css"/>
+
+  <!-- Shared JS -->
+  <script src="../js/shared.js"></script>
+</head>
+
+<body>
+<div id="navbarPlaceholder"></div>
+<div class="page-container">
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div class="page-eyebrow">History</div>
+    <h1 class="page-title">Resume <em>History</em></h1>
+    <p class="page-sub">View all previously analyzed resumes</p>
+  </div>
+
+  <!-- ACTION BUTTON -->
+  <div class="page-nav-row">
+    <button class="history-btn" onclick="clearAll()">Clear History</button>
+  </div>
+
+  <!-- HISTORY LIST -->
+  <div id="historyContainer" class="history-list"></div>
+
+</div>
+
+<script>
+function loadHistory() {
+  const history = getHistory();
+  const container = document.getElementById("historyContainer");
+
+  container.innerHTML = "";
+
+  if (history.length === 0) {
+    container.innerHTML = `
+      <div class="empty-gate">
+        <div class="empty-icon-lg">📂</div>
+        <h2>No History Yet</h2>
+        <p>Upload and analyze a resume to see results here.</p>
+      </div>
+    `;
+    return;
+  }
+
+  history.reverse().forEach(item => {
+
+    // Show top 5 skills
+    const skills = item.data.extracted_skills
+      ?.slice(0, 5)
+      .map(s => `<span class="badge">${s.name}</span>`)
+      .join("") || "";
+
+    const div = document.createElement("div");
+    div.className = "history-card";
+
+    div.innerHTML = `
+      <div class="history-top">
+        <div class="history-name">${item.data.name || "Unknown"}</div>
+        <div class="history-date">${item.date}</div>
+      </div>
+
+      <div class="history-score">
+        Score: ${item.data.overall_score || 0}
+      </div>
+
+      <div class="history-skills">
+        ${skills}
+      </div>
+
+      <div class="history-actions">
+        <button class="history-btn" onclick='viewResult(${JSON.stringify(item.data)})'>
+          View Details
+        </button>
+      </div>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+// VIEW RESULT
+function viewResult(data) {
+  localStorage.setItem("selected_history", JSON.stringify(data));
+  window.location.href = "analyze.html";
+}
+
+// CLEAR HISTORY
+function clearAll() {
+  if (confirm("Are you sure you want to clear all history?")) {
+    clearHistory();
+    loadHistory();
+  }
+}
+
+
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const user = Auth.getSession?.();
+  initNavbar('history', user);   // ✅ THIS LINE SHOWS NAVBAR
+  loadHistory();
+});
+</script>
+</body>
+</html>
