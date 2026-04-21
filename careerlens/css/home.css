@@ -80,7 +80,7 @@
 .mock-role.active-role { background: var(--accent-lt); color: var(--accent); font-weight: 600; }
 .mock-pct { font-weight: 700; font-family: var(--font-head); }
 
-.mock-gaps {}
+.mock-gaps 
 .mock-gap-label { font-size: 11px; color: var(--muted2); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.07em; }
 .mock-gap-badges { display: flex; gap: 6px; flex-wrap: wrap; }
 .mock-gap-badges span {

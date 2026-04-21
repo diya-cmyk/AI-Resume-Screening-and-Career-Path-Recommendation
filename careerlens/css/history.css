@@ -1,0 +1,149 @@
+/* ── HISTORY PAGE ─────────────────────────────────────────── */
+
+/* Use the same page container and header styles from pages.css */
+
+.history-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+  gap: 20px;
+  margin-top: 1.5rem;
+}
+
+@media(max-width: 640px) {
+  .history-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* History Card Styling - matching .role-card-full or .mock-card */
+.history-card {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-xl);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.history-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
+}
+
+/* Top Section: Name and Date */
+.history-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.history-name {
+  font-family: var(--font-head);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.history-date {
+  font-size: 11px;
+  color: var(--muted2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Score Pill - matching the "mock-score" vibe */
+.history-score {
+  display: inline-flex;
+  align-items: center;
+  background: var(--accent-lt);
+  color: var(--accent);
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  width: fit-content;
+  margin-bottom: 1.25rem;
+  border: 1px solid rgba(200, 80, 42, 0.15);
+}
+
+/* Skill Badges - matching .mock-gap-badges */
+.history-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 1.5rem;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--bg2);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* Buttons - matching .role-select-btn or .social-btn */
+.history-actions {
+  margin-top: auto;
+}
+
+.history-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border-radius: var(--r);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-body);
+}
+
+/* Secondary Button (View Details) */
+.history-actions .history-btn {
+  background: var(--ink);
+  color: #fff;
+  border: none;
+}
+
+.history-actions .history-btn:hover {
+  background: #000;
+  transform: translateY(-1px);
+}
+
+/* Clear History Button (at the top) */
+.page-nav-row .history-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1.5px solid var(--border2);
+  width: auto;
+  padding: 8px 16px;
+}
+
+.page-nav-row .history-btn:hover {
+  color: var(--red);
+  border-color: var(--red);
+  background: var(--red-lt);
+}
+
+/* Empty State - matching .empty-gate in pages.css */
+.empty-gate {
+  border: 2px dashed var(--border2);
+  border-radius: var(--r-xl);
+  background: var(--bg2);
+}
+
+.empty-icon-lg {
+  color: var(--bg3);
+  margin-bottom: 1rem;
+}

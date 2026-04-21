@@ -4,113 +4,127 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>History — CareerLens</title>
-
-  <!-- Your existing CSS -->
   <link rel="stylesheet" href="../css/shared.css"/>
   <link rel="stylesheet" href="../css/pages.css"/>
-
-  <!-- Shared JS -->
+  <link rel="stylesheet" href="../css/history.css"/> 
   <script src="../js/shared.js"></script>
 </head>
-
 <body>
 <div id="navbarPlaceholder"></div>
-<div class="page-container">
-
-  <!-- HEADER -->
+<div class="page-container page-fade">
   <div class="page-header">
-    <div class="page-eyebrow">History</div>
+    <div class="page-eyebrow">Records</div>
     <h1 class="page-title">Resume <em>History</em></h1>
-    <p class="page-sub">View all previously analyzed resumes</p>
+    <p class="page-sub">Access your previously analyzed resumes and career roadmaps.</p>
   </div>
-
-  <!-- ACTION BUTTON -->
   <div class="page-nav-row">
-    <button class="history-btn" onclick="clearAll()">Clear History</button>
+    <button class="history-btn" onclick="clearAll()">
+       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:5px"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+       Clear All History
+    </button>
   </div>
-
-  <!-- HISTORY LIST -->
   <div id="historyContainer" class="history-list"></div>
-
 </div>
 
-<script>
-function loadHistory() {
-  const history = getHistory();
-  const container = document.getElementById("historyContainer");
+<script type="module">
+  import { auth } from "../js/firebase-config.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 
-  container.innerHTML = "";
+  let historyItems = [];
 
-  if (history.length === 0) {
-    container.innerHTML = `
-      <div class="empty-gate">
-        <div class="empty-icon-lg">📂</div>
-        <h2>No History Yet</h2>
-        <p>Upload and analyze a resume to see results here.</p>
-      </div>
-    `;
-    return;
-  }
-
-  history.reverse().forEach(item => {
-
-    // Show top 5 skills
-    const skills = item.data.extracted_skills
-      ?.slice(0, 5)
-      .map(s => `<span class="badge">${s.name}</span>`)
-      .join("") || "";
-
-    const div = document.createElement("div");
-    div.className = "history-card";
-
-    div.innerHTML = `
-      <div class="history-top">
-        <div class="history-name">${item.data.name || "Unknown"}</div>
-        <div class="history-date">${item.date}</div>
-      </div>
-
-      <div class="history-score">
-        Score: ${item.data.overall_score || 0}
-      </div>
-
-      <div class="history-skills">
-        ${skills}
-      </div>
-
-      <div class="history-actions">
-        <button class="history-btn" onclick='viewResult(${JSON.stringify(item.data)})'>
-          View Details
-        </button>
-      </div>
-    `;
-
-    container.appendChild(div);
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      initNavbar('history', user);
+      // FIXED: Enable logout when clicking profile letter
+      const logBtn = document.getElementById('logoutBtn');
+      if (logBtn) logBtn.onclick = () => Auth.logout(auth);
+    } else { window.location.href = 'login.html'; }
   });
-}
 
-// VIEW RESULT
-function viewResult(data) {
-  localStorage.setItem("selected_history", JSON.stringify(data));
-  window.location.href = "analyze.html";
-}
+  function loadHistory() {
+    // Get fresh data from localStorage
+    const rawHistory = JSON.parse(localStorage.getItem('cl_history') || '[]');
+    const container = document.getElementById("historyContainer");
 
-// CLEAR HISTORY
-function clearAll() {
-  if (confirm("Are you sure you want to clear all history?")) {
-    clearHistory();
-    loadHistory();
+    // Display newest first
+    historyItems = [...rawHistory].reverse();
+    container.innerHTML = "";
+
+    if (historyItems.length === 0) {
+      container.innerHTML = `<div class="empty-gate"><div class="empty-icon-lg">📂</div><h2>No History</h2><a href="analyze.html" class="btn btn-accent">Analyze Now</a></div>`;
+      return;
+    }
+
+    historyItems.forEach((item, index) => {
+      const skillsHtml = item.data.extracted_skills?.slice(0, 5).map(s => `<span class="badge">${s.name}</span>`).join("") || "";
+      const card = document.createElement("div");
+      card.className = "history-card";
+      card.innerHTML = `
+        <div class="history-header-row">
+          <div class="history-name">${item.data.name || "Candidate"}</div>
+          <div class="history-meta-right">
+            <div class="history-date">${item.date}</div>
+            <button class="delete-single-btn" onclick="deleteRecord(${index})" title="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="red" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path></svg>
+            </button>
+          </div>
+        </div>
+        <div class="history-score-tag">Match Score: ${item.data.overall_score || 0}%</div>
+        <div class="history-skills">${skillsHtml}</div>
+        <div class="history-actions"><button class="history-btn view-btn" onclick="viewResult(${index})">View Analysis</button></div>
+      `;
+      container.appendChild(card);
+    });
   }
+
+  // FIXED: Actually deletes the record from localStorage
+  window.deleteRecord = function(index) {
+    if (confirm("Delete this analysis?")) {
+      const raw = JSON.parse(localStorage.getItem('cl_history') || '[]');
+      // Calculate correct index for the original array (before reverse)
+      const targetIndex = (raw.length - 1) - index;
+      raw.splice(targetIndex, 1);
+      localStorage.setItem('cl_history', JSON.stringify(raw));
+      loadHistory(); // Re-render
+      showToast("Record deleted", "default");
+    }
+  };
+
+  window.viewResult = function(index) {
+    const selectedRecord = historyItems[index].data;
+    AnalysisStore.save(selectedRecord);
+    localStorage.removeItem('cl_selected_role');
+    window.location.href = "skills.html";
+  };
+
+  window.clearAll = function() {
+    if (confirm("Clear everything?")) {
+      localStorage.removeItem('cl_history');
+      loadHistory();
+      showToast("History cleared", "default");
+    }
+  };
+
+  document.addEventListener("DOMContentLoaded", () => loadHistory());
+</script>
+
+<style>
+/* PREVENT OVERLAP */
+.history-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
+.history-name { font-weight: 700; font-size: 1.1rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; }
+.history-meta-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.history-date { font-size: 0.75rem; color: #888; }
 
+.delete-single-btn { background: #fff; border: 1px solid #fee2e2; border-radius: 4px; padding: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
+.delete-single-btn:hover { background: #fee2e2; transform: scale(1.1); }
 
-</script>
-
-<script>
-document.addEventListener("DOMContentLoaded", () => {
-  const user = Auth.getSession?.();
-  initNavbar('history', user);   // ✅ THIS LINE SHOWS NAVBAR
-  loadHistory();
-});
-</script>
+.history-score-tag { display: inline-block; background: #fff5f2; color: #c8502a; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 15px; }
+.history-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #f0f0f0; margin-bottom: 15px; position: relative; }
+</style>
 </body>
 </html>
