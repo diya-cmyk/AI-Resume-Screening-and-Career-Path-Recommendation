@@ -207,7 +207,7 @@
         const expStatus = calculateExperience(text);
         const extracted = [];
 
-        // Skill Extraction
+        // Skill Extraction Logic
         MASTER_SKILLS.forEach(obj => {
           const terms = obj.keywords || [obj.name];
           const found = terms.some(term => new RegExp(`\\b${term}\\b`, 'gi').test(text));
@@ -222,7 +222,7 @@
 
         const userSkillNames = extracted.map(s => s.name);
 
-        // Role Matching
+        // Role Matching Logic
         const roleMatches = ROLE_LIBRARIES.map(roleDef => {
           const matched = roleDef.required.filter(s => userSkillNames.includes(s));
           const missing = roleDef.required.filter(s => !userSkillNames.includes(s));
@@ -247,8 +247,21 @@
           overall_score: roleMatches[0]?.match_score || 0
         };
 
+        // --- SAVING LOGIC START ---
+        // 1. Save to current session store
         AnalysisStore.save(result);
-        if(window.saveToHistory) saveToHistory(result);
+        
+        // 2. Clear any previously selected role so the user starts fresh
+        localStorage.removeItem('cl_selected_role');
+
+        // 3. HARD SAVE TO HISTORY ARRAY
+        const currentHistory = JSON.parse(localStorage.getItem('cl_history') || '[]');
+        currentHistory.push({
+            date: new Date().toLocaleString(),
+            data: result
+        });
+        localStorage.setItem('cl_history', JSON.stringify(currentHistory));
+        // --- SAVING LOGIC END ---
         
         setTimeout(() => { window.location.href = 'skills.html'; }, 1500);
       } catch (err) {

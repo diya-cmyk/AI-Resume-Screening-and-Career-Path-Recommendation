@@ -35,19 +35,17 @@
   onAuthStateChanged(auth, (user) => {
     if (user) {
       initNavbar('history', user);
-      // FIXED: Enable logout when clicking profile letter
       const logBtn = document.getElementById('logoutBtn');
       if (logBtn) logBtn.onclick = () => Auth.logout(auth);
     } else { window.location.href = 'login.html'; }
   });
 
   function loadHistory() {
-    // Get fresh data from localStorage
+    // FRESH LOAD FROM STORAGE
     const rawHistory = JSON.parse(localStorage.getItem('cl_history') || '[]');
+    historyItems = [...rawHistory].reverse(); // Display newest first
+    
     const container = document.getElementById("historyContainer");
-
-    // Display newest first
-    historyItems = [...rawHistory].reverse();
     container.innerHTML = "";
 
     if (historyItems.length === 0) {
@@ -77,15 +75,16 @@
     });
   }
 
-  // FIXED: Actually deletes the record from localStorage
+  // FIXED: Actually deletes from localStorage and refreshes UI
   window.deleteRecord = function(index) {
-    if (confirm("Delete this analysis?")) {
+    if (confirm("Delete this specific record?")) {
       const raw = JSON.parse(localStorage.getItem('cl_history') || '[]');
-      // Calculate correct index for the original array (before reverse)
+      // Calculate correct index in original array
       const targetIndex = (raw.length - 1) - index;
       raw.splice(targetIndex, 1);
+      
       localStorage.setItem('cl_history', JSON.stringify(raw));
-      loadHistory(); // Re-render
+      loadHistory();
       showToast("Record deleted", "default");
     }
   };
@@ -98,10 +97,10 @@
   };
 
   window.clearAll = function() {
-    if (confirm("Clear everything?")) {
+    if (confirm("Clear all history permanently?")) {
       localStorage.removeItem('cl_history');
       loadHistory();
-      showToast("History cleared", "default");
+      showToast("All records cleared", "default");
     }
   };
 
@@ -109,22 +108,22 @@
 </script>
 
 <style>
-/* PREVENT OVERLAP */
+/* CSS to prevent overlapping */
 .history-header-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
-.history-name { font-weight: 700; font-size: 1.1rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 10px; }
-.history-meta-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
-.history-date { font-size: 0.75rem; color: #888; }
+.history-name { font-weight: 700; font-size: 1.1rem; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 15px; }
+.history-meta-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.history-date { font-size: 0.72rem; color: #888; white-space: nowrap; }
 
-.delete-single-btn { background: #fff; border: 1px solid #fee2e2; border-radius: 4px; padding: 6px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; }
+.delete-single-btn { background: #fff; border: 1px solid #fee2e2; border-radius: 4px; padding: 4px; cursor: pointer; transition: 0.2s; display: flex; }
 .delete-single-btn:hover { background: #fee2e2; transform: scale(1.1); }
 
 .history-score-tag { display: inline-block; background: #fff5f2; color: #c8502a; padding: 4px 10px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; margin-bottom: 15px; }
-.history-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #f0f0f0; margin-bottom: 15px; position: relative; }
+.history-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid #f0f0f0; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.02); }
 </style>
 </body>
 </html>
