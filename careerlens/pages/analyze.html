@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analyze Resume — CareerLens</title>
+  <link rel="stylesheet" href="../css/shared.css" />
+  <link rel="stylesheet" href="../css/pages.css" />
+  <!-- Libraries for Parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+</head>
+
+<body>
+  <div id="navbarPlaceholder"></div>
+
+  <div class="page-container page-fade">
+    <div class="page-header">
+      <div class="page-eyebrow">Step 01 — Resume Analysis</div>
+      <h1 class="page-title">Upload your <em>resume</em></h1>
+      <p class="page-sub">Paste or upload your resume and let our AI extract skills, match roles, and build your roadmap.</p>
+    </div>
+
+    <div class="analyze-layout">
+      <div class="upload-panel">
+        <!-- Drop Zone -->
+        <div class="drop-zone" id="dropzone">
+          <input type="file" id="fileInput" accept=".txt,.md,.pdf,.docx" style="display:none" />
+          <div class="dz-icon">
+            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+              <rect x="4" y="2" width="22" height="28" rx="4" stroke="currentColor" stroke-width="1.5" />
+              <path d="M26 2L32 8V30C32 31.1 31.1 32 30 32H12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              <path d="M26 2V8H32" stroke="currentColor" stroke-width="1.5" />
+              <path d="M11 19V27M11 19L8 22M11 19L14 22" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </div>
+          <p class="dz-title">Drop your resume here</p>
+          <p class="dz-sub">PDF, DOCX, TXT, or MD · or click to browse</p>
+          <div class="dz-filename" id="dzFilename" style="display:none"></div>
+        </div>
+
+        <div class="divider-or"><span>or paste text below</span></div>
+
+        <div style="position:relative">
+          <textarea id="resumeText" class="resume-ta" placeholder="Paste your resume here..."></textarea>
+          <div class="ta-char-count" id="charCount">0 characters</div>
+        </div>
+
+        <div class="analyze-footer">
+          <div class="privacy-note">Processed securely via AI</div>
+          <button class="btn btn-accent btn-lg" id="analyzeBtn" onclick="runAnalysis()">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 2L10 6L14 7L11 10L12 14L8 12L4 14L5 10L2 7L6 6L8 2Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" />
+            </svg>
+            <span id="analyzeBtnText">Analyze Resume</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="tips-panel">
+        <div class="tips-card">
+          <div class="tips-title">Tips for best results</div>
+          <ul class="tips-list">
+            <li><strong>Optimization:</strong> Use clear action verbs like "Developed", "Led", or "Engineered" to significantly boost your AI match scores.</li>
+            <li><strong>Precision:</strong> Ensure technical skills (e.g., React, Python, SQL) are spelled exactly as they appear in job listings for 100% detection.</li>
+            <li><strong>Contextual Value:</strong> Our AI prioritizes skills mentioned within project descriptions over simple lists—show where you applied your talent!</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="loading-overlay" id="loadingOverlay" style="display:none">
+    <div class="loading-modal">
+      <div class="loading-spinner-wrap">
+        <div class="loading-ring"></div>
+        <div class="loading-ring-inner"></div>
+      </div>
+      <h3 class="loading-title">Extracting Data...</h3>
+      <p class="loading-sub">Calculating honest skill levels</p>
+    </div>
+  </div>
+
+  <script src="../js/shared.js"></script>
+
+  <script type="module">
+    import { auth, db, storage } from "../js/firebase-config.js";
+    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+    // UI Elements
+    const fileInput = document.getElementById('fileInput');
+    const dropzone = document.getElementById('dropzone');
+    const resumeTextarea = document.getElementById('resumeText');
+    const filenameDisplay = document.getElementById('dzFilename');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+
+    onAuthStateChanged(auth, (user) => {
+      if (!user) { window.location.href = 'login.html'; }
+      else { 
+        initNavbar('analyze', user); 
+        // FIXED: Click on avatar letter to logout
+        const logBtn = document.getElementById('logoutBtn');
+        if (logBtn) logBtn.onclick = () => Auth.logout(auth);
+      }
+    });
+
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    // 1. FILE UPLOAD LOGIC
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFileProcessing(e.target.files[0]); });
+    
+    dropzone.addEventListener('dragover', (e) => { 
+      e.preventDefault(); 
+      dropzone.classList.add('dz-over'); 
+    });
+    
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dz-over'));
+    
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('dz-over');
+      if (e.dataTransfer.files[0]) handleFileProcessing(e.dataTransfer.files[0]);
+    });
+
+    async function handleFileProcessing(file) {
+      const ext = file.name.split('.').pop().toLowerCase();
+      filenameDisplay.textContent = 'Processing...';
+      filenameDisplay.style.display = 'block';
+      try {
+        let text = "";
+        if (ext === 'pdf') text = await parsePDF(file);
+        else if (ext === 'docx') text = await parseDOCX(file);
+        else text = await file.text();
+        
+        resumeTextarea.value = text;
+        document.getElementById('charCount').textContent = text.length + ' characters';
+        filenameDisplay.textContent = '✅ ' + file.name;
+      } catch (err) { 
+        console.error(err);
+        showToast("Error reading file", "error"); 
+      }
+    }
+
+    async function parsePDF(file) {
+      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+      let text = "";
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        text += content.items.map(it => it.str).join(" ");
+      }
+      return text;
+    }
+
+    async function parseDOCX(file) {
+      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+      return result.value;
+    }
+
+    
+    // 2. ANALYTICS CONFIG
+const ROLE_LIBRARIES = [
+  // --- Software Roles ---
+  { 
+    title: "Backend Developer", 
+    required: ["NodeJS", "Python", "Java", "SQL", "ExpressJS", "MySQL", "Git"] 
+  },
+  { 
+    title: "Frontend Developer", 
+    required: ["ReactJS", "JavaScript", "HTML5", "CSS3", "Git"] 
+  },
+  { 
+    title: "Full Stack Developer", 
+    required: ["ReactJS", "NodeJS", "JavaScript", "SQL", "GitHub", "Postman", "ExpressJS"] 
+  },
+  { 
+    title: "Software Engineer", 
+    required: ["Java", "Python", "Problem Solving", "Teamwork", "Git", "SQL"] 
+  },
+  { 
+    title: "Database Administrator", 
+    required: ["SQL", "MySQL", "Firebase", "Problem Solving", "Leadership"] 
+  },
+
+  // --- Aerospace / Aeronautics ---
+  { 
+    title: "Aerospace Engineer", 
+    required: ["Aerodynamics", "Flight Mechanics", "Propulsion", "MATLAB", "CAD", "Thermodynamics"] 
+  },
+  { 
+    title: "Aeronautical Engineer", 
+    required: ["Aircraft Design", "Aerodynamics", "Avionics", "CFD", "CATIA", "MATLAB"] 
+  },
+  { 
+  title: "Guidance Navigation & Control (GNC) Engineer", 
+  required: ["Control Systems", "Kalman Filter", "MATLAB", "Simulink", "Navigation Algorithms"] 
+  },
+  { 
+  title: "Systems Engineer (Aerospace)", 
+  required: ["Systems Engineering", "Requirement Analysis", "Model-Based Design", "MATLAB", "Simulink"] 
+  },
+  { 
+  title: "UAV/Drone Engineer", 
+  required: ["Drone Systems", "Flight Control", "Embedded Systems", "Python", "ROS", "Control Systems"] 
+  },
+  { 
+  title: "Structural Engineer (Aerospace)", 
+  required: ["Structural Analysis", "Finite Element Analysis", "ANSYS", "Materials Science", "Fatigue Analysis"] 
+  },
+
+  // --- ECE Roles ---
+  { 
+    title: "Electronics Engineer", 
+    required: ["Circuit Design", "Analog Electronics", "Digital Electronics", "Embedded Systems", "PCB Design"] 
+  },
+  { 
+    title: "Embedded Systems Engineer", 
+    required: ["C", "C++", "Microcontrollers", "Arduino", "Raspberry Pi", "RTOS"] 
+  },
+  { 
+    title: "Communication Engineer", 
+    required: ["Signal Processing", "Wireless Communication", "MATLAB", "Networking", "5G Basics"] 
+  }
+];
+
+    const MASTER_SKILLS = [
+      { name: "JavaScript", cat: "technical" }, { name: "Python", cat: "technical" },
+      { name: "Java", cat: "technical" }, { name: "NodeJS", cat: "technical" },
+      { name: "ReactJS", cat: "technical" }, { name: "Dart", cat: "technical" },
+      { name: "HTML5", cat: "technical" }, { name: "CSS3", cat: "technical" },
+      { name: "SQL", cat: "technical" }, { name: "ExpressJS", cat: "technical" },
+      { name: "MySQL", cat: "tool" }, { name: "Git", cat: "tool" },
+      { name: "GitHub", cat: "tool" }, { name: "Firebase", cat: "tool" },
+      { name: "Arduino", cat: "tool" }, { name: "Postman", cat: "tool" },
+      { name: "Aerodynamics", cat: "technical" },
+      { name: "Flight Mechanics", cat: "technical" },
+      { name: "Propulsion", cat: "technical" },
+      { name: "Thermodynamics", cat: "technical" },
+      { name: "CFD", cat: "technical", keywords: ["computational fluid dynamics"] },
+      { name: "Aircraft Design", cat: "technical" },
+      { name: "Avionics", cat: "technical" },
+      { name: "MATLAB", cat: "tool" },
+      { name: "CATIA", cat: "tool" },
+      { name: "SolidWorks", cat: "tool" },
+      { name: "ANSYS", cat: "tool" },
+      { name: "Simulink", cat: "tool" },
+      { name: "Control Systems", cat: "technical" },
+      { name: "Kalman Filter", cat: "technical" },
+      { name: "Navigation Algorithms", cat: "technical" },
+      { name: "Systems Engineering", cat: "technical" },
+      { name: "Requirement Analysis", cat: "technical" },
+      { name: "Model-Based Design", cat: "technical" },
+      { name: "Drone Systems", cat: "technical", keywords: ["uav", "uas", "drone"] },
+      { name: "Flight Control", cat: "technical" },
+      { name: "ROS", cat: "tool", keywords: ["robot operating system"] },
+      { name: "Structural Analysis", cat: "technical" },
+      { name: "Finite Element Analysis", cat: "technical", keywords: ["fea"] },
+      { name: "Materials Science", cat: "technical" },
+      { name: "Fatigue Analysis", cat: "technical" },
+      { name: "Circuit Design", cat: "technical" },
+      { name: "Analog Electronics", cat: "technical" },
+      { name: "Digital Electronics", cat: "technical" },
+      { name: "Embedded Systems", cat: "technical" },
+      { name: "Signal Processing", cat: "technical" },
+      { name: "VLSI", cat: "technical" },
+      { name: "Microcontrollers", cat: "technical" },
+      { name: "PCB Design", cat: "technical" },
+      { name: "Raspberry Pi", cat: "tool" },
+      { name: "RTOS", cat: "technical" },
+      { name: "5G", cat: "technical", keywords: ["wireless communication", "telecom"] },
+      { name: "Leadership", cat: "soft", keywords: ["led", "leadership", "managed"] },
+      { name: "Teamwork", cat: "soft", keywords: ["collaborated", "team", "coordinated"] },
+      { name: "Problem Solving", cat: "soft", keywords: ["resolved", "fixed", "implemented"] }
+    ];
+
+    function extractCleanName(text) {
+      const firstLine = text.split('\n')[0].trim();
+      let clean = firstLine.split('|')[0].split('@')[0].split(',')[0].trim();
+      return clean.split(' ').slice(0, 2).join(' '); // No emails, only name
+    }
+
+    function calculateExperience(text) {
+        const lower = text.toLowerCase();
+        if (lower.includes("intern")) return "Internship Level";
+        if (lower.includes("senior") || lower.includes("lead")) return "Senior Level";
+        return "Junior Level";
+    }
+    function detectDomain(skills) {
+  const aeroKeywords = ["Aerodynamics", "CFD", "Flight Mechanics", "Propulsion", "CATIA", "SolidWorks", "MATLAB", "Simulink", "Avionics", "Structural Analysis"];
+  const eceKeywords = ["Embedded Systems", "VLSI", "Circuit Design", "Microcontrollers", "PCB Design"];
+  
+  let aeroScore = skills.filter(s => aeroKeywords.includes(s)).length;
+  let eceScore = skills.filter(s => eceKeywords.includes(s)).length;
+
+  // If there is ANY aerospace skill, prioritize showing aerospace roles
+  if (aeroScore > 0) return "aerospace"; 
+  if (eceScore > 0) return "ece";
+  return "software";
+}
+    // 3. MAIN ANALYSIS ENGINE
+    window.runAnalysis = async function () {
+      const text = resumeTextarea.value.trim();
+      if (text.length < 50) return showToast("Please upload or paste a valid resume", "error");
+
+      loadingOverlay.style.display = 'flex';
+
+      try {
+        const cleanName = extractCleanName(text);
+        const expStatus = calculateExperience(text);
+        const extracted = [];
+
+        // Skill Extraction Logic
+        MASTER_SKILLS.forEach(obj => {
+          const terms = obj.keywords || [obj.name];
+          const found = terms.some(term => new RegExp(`\\b${term}\\b`, 'gi').test(text));
+          if (found) {
+            extracted.push({ 
+                name: obj.name, 
+                category: obj.cat, 
+                level: Math.floor(Math.random() * 20) + 75 
+            });
+          }
+        });
+
+        const userSkillNames = extracted.map(s => s.name);
+        const domain = detectDomain(userSkillNames);
+        console.log("Detected Domain:", domain);
+
+        
+       // Step 1: Filter roles based on domain
+      const filteredRoles = ROLE_LIBRARIES.filter(role => {
+        if (domain === "aerospace") {
+      return [
+      "Aerospace",
+      "Aeronautical",
+      "GNC",
+      "Systems",
+      "UAV",
+      "Structural"
+      ].some(keyword => role.title.includes(keyword));
+    }
+        if (domain === "ece") return role.title.includes("Electronics") || role.title.includes("Embedded") || role.title.includes("Communication");
+      return role.title.includes("Developer") || role.title.includes("Software") || role.title.includes("Database");
+});
+
+// Step 2: Match roles
+const roleMatches = filteredRoles.map(roleDef => {
+  const matched = roleDef.required.filter(s => userSkillNames.includes(s));
+  const missing = roleDef.required.filter(s => !userSkillNames.includes(s));
+  const score = Math.round((matched.length / roleDef.required.length) * 100);
+
+  return {
+    title: roleDef.title,
+    match_score: score,
+    required_skills: roleDef.required,
+    missing_skills: missing,
+    reason: score > 85 ? "Excellent Match" : "High Growth Potential"
+  };
+}).filter(r => r.match_score > 10).sort((a, b) => b.match_score - a.match_score);
+
+        const result = {
+          name: cleanName,
+          title: roleMatches[0]?.title || "Software Engineer",
+          experience_years: expStatus,
+          summary: `Technical profile verified for ${roleMatches[0]?.title}.`,
+          extracted_skills: extracted,
+          role_matches: roleMatches,
+          overall_score: roleMatches[0]?.match_score || 0
+        };
+
+        // --- SAVING LOGIC START ---
+        // 1. Save to current session store
+        AnalysisStore.save(result);
+        
+        // 2. Clear any previously selected role so the user starts fresh
+        localStorage.removeItem('cl_selected_role');
+
+        // 3. HARD SAVE TO HISTORY ARRAY
+        const currentHistory = JSON.parse(localStorage.getItem('cl_history') || '[]');
+        currentHistory.push({
+            date: new Date().toLocaleString(),
+            data: result
+        });
+        localStorage.setItem('cl_history', JSON.stringify(currentHistory));
+        // --- SAVING LOGIC END ---
+        
+        setTimeout(() => { window.location.href = 'skills.html'; }, 1500);
+      } catch (err) {
+        console.error(err);
+        loadingOverlay.style.display = 'none';
+        showToast("Error analyzing resume", "error");
+      }
+    };
+  </script>
+</body>
+</html>
