@@ -32,18 +32,28 @@
 
   let historyItems = [];
 
+  // Helper to get the current user's specific storage key
+  const getHistoryKey = () => auth.currentUser ? `cl_history_${auth.currentUser.uid}` : null;
+
   onAuthStateChanged(auth, (user) => {
     if (user) {
       initNavbar('history', user);
       const logBtn = document.getElementById('logoutBtn');
       if (logBtn) logBtn.onclick = () => Auth.logout(auth);
-    } else { window.location.href = 'login.html'; }
+      
+      // Load history ONLY after we are sure the user is logged in
+      loadHistory();
+    } else { 
+      window.location.href = 'login.html'; 
+    }
   });
 
   function loadHistory() {
-    // FRESH LOAD FROM STORAGE
-    const rawHistory = JSON.parse(localStorage.getItem('cl_history') || '[]');
-    historyItems = [...rawHistory].reverse(); // Display newest first
+    const key = getHistoryKey();
+    if (!key) return;
+
+    const rawHistory = JSON.parse(localStorage.getItem(key) || '[]');
+    historyItems = [...rawHistory].reverse(); 
     
     const container = document.getElementById("historyContainer");
     container.innerHTML = "";
@@ -75,15 +85,14 @@
     });
   }
 
-  // FIXED: Actually deletes from localStorage and refreshes UI
   window.deleteRecord = function(index) {
     if (confirm("Delete this specific record?")) {
-      const raw = JSON.parse(localStorage.getItem('cl_history') || '[]');
-      // Calculate correct index in original array
+      const key = getHistoryKey();
+      const raw = JSON.parse(localStorage.getItem(key) || '[]');
       const targetIndex = (raw.length - 1) - index;
       raw.splice(targetIndex, 1);
       
-      localStorage.setItem('cl_history', JSON.stringify(raw));
+      localStorage.setItem(key, JSON.stringify(raw));
       loadHistory();
       showToast("Record deleted", "default");
     }
@@ -98,13 +107,12 @@
 
   window.clearAll = function() {
     if (confirm("Clear all history permanently?")) {
-      localStorage.removeItem('cl_history');
+      const key = getHistoryKey();
+      localStorage.removeItem(key);
       loadHistory();
       showToast("All records cleared", "default");
     }
   };
-
-  document.addEventListener("DOMContentLoaded", () => loadHistory());
 </script>
 
 <style>

@@ -414,9 +414,12 @@
 
         AnalysisStore.save(result);
         localStorage.removeItem('cl_selected_role');
-        const currentHistory = JSON.parse(localStorage.getItem('cl_history') || '[]');
+        
+        // Use a unique key for each user
+        const userHistoryKey = `cl_history_${auth.currentUser.uid}`;
+        const currentHistory = JSON.parse(localStorage.getItem(userHistoryKey) || '[]');
         currentHistory.push({ date: new Date().toLocaleString(), data: result });
-        localStorage.setItem('cl_history', JSON.stringify(currentHistory));
+        localStorage.setItem(userHistoryKey, JSON.stringify(currentHistory));
 
         setTimeout(() => { window.location.href = 'skills.html'; }, 1500);
       } catch (err) {
