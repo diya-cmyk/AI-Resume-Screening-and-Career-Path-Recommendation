@@ -62,20 +62,6 @@
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="role">Current/target role</label>
-          <select class="form-input" id="role">
-            <option value="">Select a role...</option>
-            <option>Software Engineer</option>
-            <option>Frontend Developer</option>
-            <option>Backend Developer</option>
-            <option>Full Stack Developer</option>
-            <option>Data Scientist</option>
-            <option>UI/UX Designer</option>
-            <option>Other</option>
-          </select>
-        </div>
-
-        <div class="form-group">
           <label class="form-label" for="password">Password</label>
           <div class="input-pw-wrap">
             <input class="form-input" id="password" type="password" placeholder="At least 6 characters"/>
@@ -124,29 +110,23 @@
     });
 
     window.doRegister = async function() {
-      console.log("REGISTER BUTTON CLICKED");
-
       const firstName = document.getElementById('firstName').value.trim();
       const lastName = document.getElementById('lastName').value.trim();
       const email = document.getElementById('email').value.trim();
-      const role = document.getElementById('role').value;
       const password = document.getElementById('password').value;
       const confirm = document.getElementById('confirm').value;
-      const agree = document.getElementById('agree').checked;
 
-      if (!email || password.length < 6 || password !== confirm || !agree) {
-        alert("Check all fields, password match (min 6 chars), and agree to terms.");
+      if (!email || password.length < 6 || password !== confirm) {
+        alert("Please ensure email is valid, passwords match and are at least 6 characters.");
         return;
       }
 
       try {
         const res = await createUserWithEmailAndPassword(auth, email, password);
         
-        // Save the profile info to the Database (Firestore)
         await setDoc(doc(db, "users", res.user.uid), {
           fullName: firstName + " " + lastName,
           email: email,
-          role: role,
           createdAt: new Date()
         });
 
