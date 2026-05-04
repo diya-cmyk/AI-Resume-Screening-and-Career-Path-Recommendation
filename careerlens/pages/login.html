@@ -77,48 +77,43 @@
   <script src="../js/shared.js"></script>
   
   <script type="module">
-    import { auth } from "../js/firebase-config.js";
-    import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  const API_BASE_URL = 'https://resume-backend-q39r.onrender.com/api';
 
-    // This makes sure the page redirects if you are already logged in
-    onAuthStateChanged(auth, (user) => {
-      if (user) window.location.href = 'analyze.html';
-    });
+  window.doLogin = async function() {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
 
-    // WE ATTACH IT TO WINDOW SO THE BUTTON CAN SEE IT
-    window.doLogin = async function() {
-      console.log("BUTTON CLICKED"); // Check F12 console for this!
-      
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value;
+    if (!email || !password) {
+      alert("Please enter email and password");
+      return;
+    }
 
-      if (!email || !password) {
-        alert("Please enter email and password");
-        return;
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('cl_token', result.token);
+        localStorage.setItem('cl_user', JSON.stringify(result.user));
+        window.location.href = "analyze.html";
+      } else {
+        throw new Error(result.error || "Login failed");
       }
+    } catch (error) {
+      alert("Login Failed: " + error.message);
+    }
+  };
 
-      try {
-        await signInWithEmailAndPassword(auth, email, password);
-        // Redirect happens automatically via onAuthStateChanged above
-      } catch (error) {
-        console.error(error);
-        alert("Login Failed: " + error.message);
-      }
-    };
-
-    window.doGoogleLogin = async function() {
-      try {
-        await signInWithPopup(auth, new GoogleAuthProvider());
-      } catch (error) {
-        alert("Google Login Failed: " + error.message);
-      }
-    };
-
-    window.togglePw = (id, btn) => {
-      const inp = document.getElementById(id);
-      inp.type = inp.type === 'password' ? 'text' : 'password';
-      btn.style.opacity = inp.type === 'text' ? '1' : '0.5';
-    };
+  window.togglePw = (id, btn) => {
+    const inp = document.getElementById(id);
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+    btn.style.opacity = inp.type === 'text' ? '1' : '0.5';
+  };
 </script>
 </body>
 </html>
