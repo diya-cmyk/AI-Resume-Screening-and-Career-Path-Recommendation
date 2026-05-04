@@ -1,120 +1,137 @@
-import { auth, db } from "./firebase-config.js";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
-
-import {
-  doc,
-  setDoc
-} from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+// ==========================
+// CONFIGURATION
+// ==========================
+const API_BASE_URL = 'https://resume-backend-q39r.onrender.com/api';
 
 // ==========================
-// AUTH STATE OBSERVER
+// AUTH STATE CHECKER
 // ==========================
-// Automatically redirects users if they are already logged in
-onAuthStateChanged(auth, (user) => {
-  const path = window.location.pathname;
-  if (user) {
-    if (path.includes("register.html") || path.includes("login.html")) {
-      window.location.href = "analyze.html";
+// Replaces onAuthStateChanged. Checks localStorage for a JWT token.
+function checkAuthState() {
+    const token = localStorage.getItem('cl_token');
+    const user = JSON.parse(localStorage.getItem('cl_user'));
+    const path = window.location.pathname;
+
+    if (token && user) {
+        // If logged in and trying to access login/register, go to analyze
+        if (path.includes("register.html") || path.includes("login.html")) {
+            window.location.href = getBasePath() + "pages/analyze.html";
+        }
+    } else {
+        // If not logged in and trying to access protected pages
+        const protectedPages = ["analyze.html", "history.html", "roadmap.html", "skills.html"];
+        if (protectedPages.some(p => path.includes(p))) {
+            window.location.href = getBasePath() + "pages/login.html";
+        }
     }
-  }
-});
+    return user;
+}
 
 // ==========================
 // REGISTER FUNCTION
 // ==========================
 window.doRegister = async function () {
-  const firstName = document.getElementById('firstName').value.trim();
-  const lastName = document.getElementById('lastName').value.trim();
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const confirm = document.getElementById('confirm').value;
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const confirm = document.getElementById('confirm').value;
 
-  if (!email || password.length < 6 || password !== confirm) {
-    alert("Please ensure email is valid, passwords match and are at least 6 characters.");
-    return;
-  }
+    if (!email || password.length < 6 || password !== confirm) {
+        alert("Please ensure email is valid, passwords match and are at least 6 characters.");
+        return;
+    }
 
-  try {
-    const res = await createUserWithEmailAndPassword(auth, email, password);
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: `${firstName} ${lastName}`,
+                email: email,
+                password: password
+            })
+        });
 
-    // Save additional user info to Firestore
-    await setDoc(doc(db, "users", res.user.uid), {
-      fullName: firstName + " " + lastName,
-      email: email,
-      createdAt: new Date()
-    });
+        const result = await response.json();
 
-    alert("Registration successful!");
-    window.location.href = "analyze.html";
-
-  } catch (error) {
-    alert("Registration Error: " + error.message);
-  }
+        if (response.ok) {
+            alert("Registration successful!");
+            // Store token and user info
+            localStorage.setItem('cl_token', result.token);
+            localStorage.setItem('cl_user', JSON.stringify(result.user));
+            window.location.href = "analyze.html";
+        } else {
+            throw new Error(result.error || "Registration failed");
+        }
+    } catch (error) {
+        alert("Registration Error: " + error.message);
+    }
 };
 
 // ==========================
 // LOGIN FUNCTION
 // ==========================
 window.doLogin = async function () {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
 
-  if (!email || !password) {
-    alert("Please enter both email and password.");
-    return;
-  }
-
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-    window.location.href = "analyze.html";
-  } catch (error) {
-    let msg = "Login failed.";
-    if (error.code === 'auth/invalid-credential') {
-      msg = "Invalid email or password.";
+    if (!email || !password) {
+        alert("Please enter both email and password.");
+        return;
     }
-    alert("Login Error: " + msg);
-  }
-};
 
-// ==========================
-// GOOGLE LOGIN
-// ==========================
-window.doGoogleLogin = async function () {
-  try {
-    const provider = new GoogleAuthProvider();
-    await signInWithPopup(auth, provider);
-    window.location.href = "analyze.html";
-  } catch (error) {
-    alert("Google Login Error: " + error.message);
-  }
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            // Save JWT and User Data to localStorage
+            localStorage.setItem('cl_token', result.token);
+            localStorage.setItem('cl_user', JSON.stringify(result.user));
+            window.location.href = "analyze.html";
+        } else {
+            throw new Error(result.error || "Invalid email or password");
+        }
+    } catch (error) {
+        alert("Login Error: " + error.message);
+    }
 };
 
 // ==========================
 // LOGOUT
 // ==========================
-window.doLogout = async function () {
-  try {
-    await signOut(auth);
-    window.location.href = "login.html";
-  } catch (error) {
-    console.error("Logout Error:", error);
-  }
+window.doLogout = function () {
+    localStorage.removeItem('cl_token');
+    localStorage.removeItem('cl_user');
+    localStorage.removeItem('cl_analysis');
+    window.location.href = getBasePath() + "pages/login.html";
 };
 
-// ==========================
-// UI HELPERS (PASSWORD TOGGLE)
-// ==========================
-window.togglePw = (id, btn) => {
-  const inp = document.getElementById(id);
-  if (inp) {
-    inp.type = inp.type === 'password' ? 'text' : 'password';
-    btn.style.opacity = inp.type === 'text' ? '1' : '0.5';
-  }
-};
+// Initialize UI
+const currentUser = checkAuthState();
+document.addEventListener('DOMContentLoaded', () => {
+    // Only init navbar if placeholder exists
+    if(document.getElementById('navbarPlaceholder')) {
+        initNavbar(getCurrentPageName(), currentUser);
+    }
+    
+    // Add logout listener to avatar if present
+    const logoutBtn = document.getElementById('logoutBtn');
+    if(logoutBtn) logoutBtn.onclick = window.doLogout;
+});
+
+function getCurrentPageName() {
+    const path = window.location.pathname;
+    if (path.includes('analyze')) return 'analyze';
+    if (path.includes('history')) return 'history';
+    if (path.includes('skills')) return 'skills';
+    if (path.includes('roles')) return 'roles';
+    if (path.includes('roadmap')) return 'roadmap';
+    return 'home';
+}
