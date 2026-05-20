@@ -20,113 +20,130 @@
   </div>
 
   <script src="../js/shared.js"></script>
-  <script type="module">
-    import { auth } from "../js/firebase-config.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+ <script type="module">
+  // ✅ Detect session and data on load
+  document.addEventListener('DOMContentLoaded', () => {
+    const user = JSON.parse(localStorage.getItem('cl_user'));
+    const token = localStorage.getItem('cl_token');
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-      } else {
-        initNavbar('skills', user);
-        // Handle logout
-        const logBtn = document.getElementById('logoutBtn');
-        if (logBtn) logBtn.onclick = () => Auth.logout(auth);
+    // 1. Auth Guard: Redirect to login if no session exists
+    if (!user || !token) {
+      window.location.href = 'login.html';
+      return;
+    }
 
-        const d = AnalysisStore.get();
-        if (!d) { 
-          document.getElementById('emptyGate').style.display='flex'; 
-        } else {
-          render(d);
-        }
-      }
-    });
+    // 2. Initialize Navbar with custom user data
+    initNavbar('skills', user);
 
-    function render(d) {
-      // Ensure data exists before filtering
-      const skills = d.extracted_skills || [];
-      const tech  = skills.filter(s => s.category === 'technical');
-      const tools = skills.filter(s => s.category === 'tool');
-      const soft  = skills.filter(s => s.category === 'soft');
-      const scoreColor = d.overall_score >= 75 ? 'var(--green)' : d.overall_score >= 50 ? 'var(--amber)' : 'var(--red)';
+    // 3. Setup Logout manually since Firebase observer is gone
+    const logBtn = document.getElementById('logoutBtn');
+    if (logBtn) {
+      logBtn.onclick = () => {
+        localStorage.removeItem('cl_user');
+        localStorage.removeItem('cl_token');
+        localStorage.removeItem('cl_analysis');
+        window.location.href = '../index.html';
+      };
+    }
 
-      document.getElementById('mainContent').innerHTML = `
-        <div class="page-header">
-          <div class="page-eyebrow">Step 02 — Extracted Skills</div>
-          <h1 class="page-title">Your skill profile</h1>
+    // 4. Get Analysis Data
+    const d = AnalysisStore.get();
+    if (!d) {
+      document.getElementById('emptyGate').style.display = 'flex';
+      document.getElementById('mainContent').style.display = 'none';
+    } else {
+      render(d);
+    }
+  });
+
+  function render(d) {
+    const skills = d.extracted_skills || [];
+    // Categories should match your backend response ('technical', 'tool', 'soft')
+    const tech = skills.filter(s => s.category === 'technical');
+    const tools = skills.filter(s => s.category === 'tool');
+    const soft = skills.filter(s => s.category === 'soft');
+    
+    const scoreColor = d.overall_score >= 75 ? 'var(--green)' : d.overall_score >= 50 ? 'var(--amber)' : 'var(--red)';
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="page-header">
+        <div class="page-eyebrow">Step 02 — Extracted Skills</div>
+        <h1 class="page-title">Your skill profile</h1>
+      </div>
+
+      <div class="summary-bar">
+        <div class="summary-info">
+          <div class="summary-name">${d.name || 'User'}</div>
+          <div class="summary-meta">${d.title || ''} &nbsp;·&nbsp; ${d.experience_years || 0} years experience</div>
+          <p class="summary-text">${d.summary || 'Resume analysis complete.'}</p>
         </div>
-
-        <div class="summary-bar">
-          <div class="summary-info">
-            <div class="summary-name">${d.name || 'User'}</div>
-            <div class="summary-meta">${d.title || ''} &nbsp;·&nbsp; ${d.experience_years || 0} years experience</div>
-            <p class="summary-text">${d.summary || ''}</p>
-          </div>
-          <div class="summary-score">
-            ${scoreRingHTML(d.overall_score || 0, 90, 7, scoreColor, '/ 100')}
-            <div class="summary-score-lbl">Overall Fit</div>
-          </div>
+        <div class="summary-score">
+          ${scoreRingHTML(d.overall_score || 0, 90, 7, scoreColor, '/ 100')}
+          <div class="summary-score-lbl">Overall Fit</div>
         </div>
+      </div>
 
-        <div class="kpi-row">
-          <div class="kpi-card"><div class="kpi-n">${skills.length}</div><div class="kpi-l">Total Skills</div></div>
-          <div class="kpi-card"><div class="kpi-n">${tech.length}</div><div class="kpi-l">Technical</div></div>
-          <div class="kpi-card"><div class="kpi-n">${tools.length}</div><div class="kpi-l">Tools</div></div>
-          <div class="kpi-card"><div class="kpi-n">${soft.length}</div><div class="kpi-l">Soft Skills</div></div>
-        </div>
+      <div class="kpi-row">
+        <div class="kpi-card"><div class="kpi-n">${skills.length}</div><div class="kpi-l">Total Skills</div></div>
+        <div class="kpi-card"><div class="kpi-n">${tech.length}</div><div class="kpi-l">Technical</div></div>
+        <div class="kpi-card"><div class="kpi-n">${tools.length}</div><div class="kpi-l">Tools</div></div>
+        <div class="kpi-card"><div class="kpi-n">${soft.length}</div><div class="kpi-l">Soft Skills</div></div>
+      </div>
 
-        <div class="skills-grid">
-          ${tech.length ? `
-          <div class="card">
-            <div class="card-section-title">Technical Skills</div>
-            ${tech.map((s,i) => skillBar(s, i)).join('')}
+      <div class="skills-grid">
+        ${tech.length ? `
+        <div class="card">
+          <div class="card-section-title">Technical Skills</div>
+          ${tech.map((s, i) => skillBar(s, i)).join('')}
+        </div>` : ''}
+
+        <div>
+          ${tools.length ? `
+          <div class="card" style="margin-bottom:16px">
+            <div class="card-section-title">Tools & Platforms</div>
+            <div class="badges-wrap">
+              ${tools.map(s => `<span class="badge badge-blue">${s.name}</span>`).join('')}
+            </div>
           </div>` : ''}
-
-          <div>
-            ${tools.length ? `
-            <div class="card" style="margin-bottom:16px">
-              <div class="card-section-title">Tools & Platforms</div>
-              <div class="badges-wrap">
-                ${tools.map(s => `<span class="badge badge-blue">${s.name}</span>`).join('')}
-              </div>
-            </div>` : ''}
-            ${soft.length ? `
-            <div class="card">
-              <div class="card-section-title">Soft Skills</div>
-              <div class="badges-wrap">
-                ${soft.map(s => `<span class="badge badge-accent">${s.name}</span>`).join('')}
-              </div>
-            </div>` : ''}
-          </div>
+          ${soft.length ? `
+          <div class="card">
+            <div class="card-section-title">Soft Skills</div>
+            <div class="badges-wrap">
+              ${soft.map(s => `<span class="badge badge-accent">${s.name}</span>`).join('')}
+            </div>
+          </div>` : ''}
         </div>
+      </div>
 
-        <div class="page-nav-row">
-          <a class="btn btn-outline" href="analyze.html">← Re-analyze</a>
-          <a class="btn btn-accent" href="roles.html">View Role Matches →</a>
-        </div>
-      `;
+      <div class="page-nav-row">
+        <a class="btn btn-outline" href="analyze.html">← Re-analyze</a>
+        <a class="btn btn-accent" href="roles.html">View Role Matches →</a>
+      </div>
+    `;
 
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          document.querySelectorAll('.skill-bar-fill[data-w]').forEach(el => {
-            el.style.width = el.dataset.w + '%';
-          });
-        }, 120);
-      });
-    }
+    // Trigger animations
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        document.querySelectorAll('.skill-bar-fill[data-w]').forEach(el => {
+          el.style.width = el.dataset.w + '%';
+        });
+      }, 120);
+    });
+  }
 
-    const BAR_COLORS = ['#c8502a','#1d4ed8','#2d6a4f','#92400e','#7c3aed'];
-    function skillBar(s, i) {
-      return `<div class="skill-bar-item">
-        <div class="skill-bar-row">
-          <span class="skill-bar-name">${s.name}</span>
-          <span class="skill-bar-pct">${s.level}%</span>
-        </div>
-        <div class="skill-bar-track">
-          <div class="skill-bar-fill" data-w="${s.level}" style="width:0%;background:${BAR_COLORS[i % BAR_COLORS.length]}"></div>
-        </div>
-      </div>`;
-    }
-  </script>
+  const BAR_COLORS = ['#c8502a', '#1d4ed8', '#2d6a4f', '#92400e', '#7c3aed'];
+function skillBar(s, i) {
+  // Ensure s.level is being passed into the data attribute and text
+  return `<div class="skill-bar-item">
+    <div class="skill-bar-row">
+      <span class="skill-bar-name">${s.name}</span>
+      <span class="skill-bar-pct">${s.level}%</span> 
+    </div>
+    <div class="skill-bar-track">
+      <div class="skill-bar-fill" data-w="${s.level}" style="width:0%; background:${BAR_COLORS[i % BAR_COLORS.length]}"></div>
+    </div>
+  </div>`;
+}
+</script>
 </body>
 </html>

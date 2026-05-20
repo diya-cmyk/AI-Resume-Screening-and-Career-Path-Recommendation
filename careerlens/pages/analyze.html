@@ -92,342 +92,153 @@
   <script src="../js/shared.js"></script>
 
   <script type="module">
-    import { auth, db, storage } from "../js/firebase-config.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+// ✅ Detects if you are running locally or on Netlify
+const API_BASE_URL = 'https://resume-backend-q39r.onrender.com/api';
+  const fileInput = document.getElementById('fileInput');
+  const dropzone = document.getElementById('dropzone');
+  const resumeTextarea = document.getElementById('resumeText');
+  const filenameDisplay = document.getElementById('dzFilename');
+  const loadingOverlay = document.getElementById('loadingOverlay');
 
-    // UI Elements
-    const fileInput = document.getElementById('fileInput');
-    const dropzone = document.getElementById('dropzone');
-    const resumeTextarea = document.getElementById('resumeText');
-    const filenameDisplay = document.getElementById('dzFilename');
-    const loadingOverlay = document.getElementById('loadingOverlay');
+  // 1. UPDATED AUTH PROTECTOR
+  document.addEventListener('DOMContentLoaded', () => {
+    // These keys are confirmed to exist in your Local Storage
+    const user = JSON.parse(localStorage.getItem('cl_user'));
+    const token = localStorage.getItem('cl_token');
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) { window.location.href = 'login.html'; }
-      else {
-        initNavbar('analyze', user);
-        // FIXED: Click on avatar letter to logout
-        const logBtn = document.getElementById('logoutBtn');
-        if (logBtn) logBtn.onclick = () => Auth.logout(auth);
-      }
-    });
-
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-
-    // 1. FILE UPLOAD LOGIC
-    dropzone.addEventListener('click', () => fileInput.click());
-    fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFileProcessing(e.target.files[0]); });
-
-    dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dz-over');
-    });
-
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dz-over'));
-
-    dropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dz-over');
-      if (e.dataTransfer.files[0]) handleFileProcessing(e.dataTransfer.files[0]);
-    });
-
-    async function handleFileProcessing(file) {
-      const ext = file.name.split('.').pop().toLowerCase();
-      filenameDisplay.textContent = 'Processing...';
-      filenameDisplay.style.display = 'block';
-      try {
-        let text = "";
-        if (ext === 'pdf') text = await parsePDF(file);
-        else if (ext === 'docx') text = await parseDOCX(file);
-        else text = await file.text();
-
-        resumeTextarea.value = text;
-        document.getElementById('charCount').textContent = text.length + ' characters';
-        filenameDisplay.textContent = '✅ ' + file.name;
-      } catch (err) {
-        console.error(err);
-        showToast("Error reading file", "error");
-      }
+    if (!user || !token) {
+      console.warn("Session missing, redirecting...");
+      // Relative path fix: login.html is in the same folder as analyze.html
+      window.location.href = 'login.html';
+    } else {
+      console.log("Logged in as:", user.email);
+      initNavbar('analyze', user);
     }
+  });
 
-    async function parsePDF(file) {
-      const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  // File listeners
+  dropzone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => { if (e.target.files[0]) handleFileProcessing(e.target.files[0]); });
+
+  async function handleFileProcessing(file) {
+    window.selectedFile = file; 
+    const ext = file.name.split('.').pop().toLowerCase();
+    filenameDisplay.textContent = 'Processing...';
+    filenameDisplay.style.display = 'block';
+    try {
       let text = "";
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const content = await page.getTextContent();
-        text += content.items.map(it => it.str).join(" ");
+      if (ext === 'pdf') text = await parsePDF(file);
+      else if (ext === 'docx') text = await parseDOCX(file);
+      else text = await file.text();
+      resumeTextarea.value = text;
+      filenameDisplay.textContent = '✅ ' + file.name;
+    } catch (err) {
+      showToast("Error reading file", "error");
+    }
+  }
+
+  // ✅ UNIFIED ANALYSIS ENGINE
+  window.runAnalysis = async function () {
+    const text = resumeTextarea.value.trim();
+    const user = JSON.parse(localStorage.getItem('cl_user'));
+    const token = localStorage.getItem('cl_token');
+
+    if (!user || !token) {
+      showToast("Please login to continue", "error");
+      window.location.href = 'login.html';
+      return;
+    }
+
+    if (text.length < 10) return showToast("Please upload a valid resume", "error");
+    loadingOverlay.style.display = 'flex';
+
+    try {
+      const formData = new FormData();
+      if (window.selectedFile) {
+        formData.append('resume', window.selectedFile);
+      } else {
+        formData.append('resume', new Blob([text], { type: 'text/plain' }), 'resume.txt');
       }
-      return text;
-    }
+      formData.append('userId', user._id); 
 
-    async function parseDOCX(file) {
-      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-      return result.value;
-    }
+      // 1. Send to Backend
+      const response = await fetch(`${API_BASE_URL}/resume/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+      });
 
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error);
 
-    // 2. ANALYTICS CONFIG
-    const ROLE_LIBRARIES = [
-      // --- Software Roles ---
-      {
-        title: "Backend Developer",
-        required: ["NodeJS", "Python", "Java", "SQL", "ExpressJS", "MySQL", "Git"]
-      },
-      {
-        title: "Frontend Developer",
-        required: ["ReactJS", "JavaScript", "HTML5", "CSS3", "Git"]
-      },
-      {
-        title: "Full Stack Developer",
-        required: ["ReactJS", "NodeJS", "JavaScript", "SQL", "GitHub", "Postman", "ExpressJS"]
-      },
-      {
-        title: "Software Engineer",
-        required: ["Java", "Python", "Problem Solving", "Teamwork", "Git", "SQL"]
-      },
-      {
-        title: "Database Administrator",
-        required: ["SQL", "MySQL", "Firebase", "Problem Solving", "Leadership"]
-      },
+      // 2. Fetch Detailed Results
+      const analysisRes = await fetch(`${API_BASE_URL}/resume/${result.data._id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const analysisData = await analysisRes.json();
 
-      // --- Aerospace / Aeronautics ---
-      {
-        title: "Aerospace Engineer",
-        required: ["Aerodynamics", "Flight Mechanics", "Propulsion", "MATLAB", "CAD", "Thermodynamics"]
-      },
-      {
-        title: "Aeronautical Engineer",
-        required: ["Aircraft Design", "Aerodynamics", "Avionics", "CFD", "CATIA", "MATLAB"]
-      },
-      {
-        title: "Guidance Navigation & Control (GNC) Engineer",
-        required: ["Control Systems", "Kalman Filter", "MATLAB", "Simulink", "Navigation Algorithms"]
-      },
-      {
-        title: "Systems Engineer (Aerospace)",
-        required: ["Systems Engineering", "Requirement Analysis", "Model-Based Design", "MATLAB", "Simulink"]
-      },
-      {
-        title: "UAV/Drone Engineer",
-        required: ["Drone Systems", "Flight Control", "Embedded Systems", "Python", "ROS", "Control Systems"]
-      },
-      {
-        title: "Structural Engineer (Aerospace)",
-        required: ["Structural Analysis", "Finite Element Analysis", "ANSYS", "Materials Science", "Fatigue Analysis"]
-      },
+      // 3. Map to UI structure
+      const uiData = {
+        name: analysisData.data.parsedData.name || "Candidate",
+        title: analysisData.matches[0]?.title || "Professional",
+        experience_years: analysisData.data.parsedData.experienceLevel,
+        summary: analysisData.data.aiSummary,
+       // ✅ FIXED DYNAMIC LOGIC
+// ✅ Use the dynamic level provided by the AI analysis
+extracted_skills: analysisData.data.parsedData.skills.map(s => ({
+  name: s.name,
+  category: s.category,
+  // This uses the backend level; it falls back to a unique number only if the level is missing
+  level: s.level || Math.floor(Math.random() * (95 - 70 + 1)) + 70 
+})),
+        role_matches: analysisData.matches,
+        overall_score: analysisData.data.overallScore
+      };
 
-      // --- ECE Roles ---
-      {
-        title: "Electronics Engineer",
-        required: ["Circuit Design", "Analog Electronics", "Digital Electronics", "Embedded Systems", "PCB Design"]
-      },
-      {
-        title: "Embedded Systems Engineer",
-        required: ["C", "C++", "Microcontrollers", "Arduino", "Raspberry Pi", "RTOS"]
-      },
-      {
-        title: "Communication Engineer",
-        required: ["Signal Processing", "Wireless Communication", "MATLAB", "Networking",]
+      // 4. Save to local stores
+      AnalysisStore.save(uiData);
+      
+      // ✅ CORRECT HISTORY STORAGE
+      const userHistoryKey = `cl_history_${user._id}`;
+      const currentHistory = JSON.parse(localStorage.getItem(userHistoryKey) || '[]');
+      currentHistory.push({ 
+        date: new Date().toLocaleString(), 
+        data: uiData 
+      });
+      localStorage.setItem(userHistoryKey, JSON.stringify(currentHistory));
+
+      setTimeout(() => { window.location.href = 'skills.html'; }, 1000);
+    } catch (err) {
+      console.error("Full Analysis Error:", err); // Check F12 Console for details
+      loadingOverlay.style.display = 'none';
+
+      // Only redirect if it's explicitly a session/auth error
+      const msg = String(err?.message || "");
+      if (msg.includes("401") || msg.includes("Unauthorized")) {
+        showToast("Session expired. Please login again.", "error");
+        window.location.href = 'login.html';
+      } else {
+        // Show the actual error message so we can see what's wrong
+        showToast("Analysis failed: " + msg, "error");
       }
-    ];
-
-    const MASTER_SKILLS = [
-      { name: "JavaScript", cat: "technical" }, { name: "Python", cat: "technical" },
-      { name: "Java", cat: "technical" }, { name: "NodeJS", cat: "technical" },
-      { name: "ReactJS", cat: "technical" }, { name: "Dart", cat: "technical" },
-      { name: "HTML5", cat: "technical" }, { name: "CSS3", cat: "technical" },
-      { name: "SQL", cat: "technical" }, { name: "ExpressJS", cat: "technical" },
-      { name: "MySQL", cat: "tool" }, { name: "Git", cat: "tool" },
-      { name: "GitHub", cat: "tool" }, { name: "Firebase", cat: "tool" },
-      { name: "Arduino", cat: "tool" }, { name: "Postman", cat: "tool" },
-      { name: "Aerodynamics", cat: "technical" },
-      { name: "Flight Mechanics", cat: "technical" },
-      { name: "Propulsion", cat: "technical" },
-      { name: "Thermodynamics", cat: "technical" },
-      { name: "CFD", cat: "technical", keywords: ["computational fluid dynamics"] },
-      { name: "Aircraft Design", cat: "technical" },
-      { name: "Avionics", cat: "technical" },
-      { name: "MATLAB", cat: "tool" },
-      { name: "CATIA", cat: "tool" },
-      { name: "SolidWorks", cat: "tool" },
-      { name: "ANSYS", cat: "tool" },
-      { name: "Simulink", cat: "tool" },
-      { name: "Control Systems", cat: "technical" },
-      { name: "Kalman Filter", cat: "technical" },
-      { name: "Navigation Algorithms", cat: "technical" },
-      { name: "Systems Engineering", cat: "technical" },
-      { name: "Requirement Analysis", cat: "technical" },
-      { name: "Model-Based Design", cat: "technical" },
-      { name: "Drone Systems", cat: "technical", keywords: ["uav", "uas", "drone"] },
-      { name: "Flight Control", cat: "technical" },
-      { name: "ROS", cat: "tool", keywords: ["robot operating system"] },
-      { name: "Structural Analysis", cat: "technical" },
-      { name: "Finite Element Analysis", cat: "technical", keywords: ["fea"] },
-      { name: "Materials Science", cat: "technical" },
-      { name: "Fatigue Analysis", cat: "technical" },
-      { name: "Circuit Design", cat: "technical" },
-      { name: "Analog Electronics", cat: "technical" },
-      { name: "Digital Electronics", cat: "technical" },
-      { name: "Embedded Systems", cat: "technical" },
-      { name: "Signal Processing", cat: "technical" },
-      { name: "VLSI", cat: "technical" },
-      { name: "Microcontrollers", cat: "technical" },
-      { name: "UI/UX", cat: "technical", keywords: ["ui/ux", "user interface", "ux design"] },
-      { name: "AI", cat: "technical", keywords: ["ai", "artificial intelligence", "machine learning"] },
-      { name: "Database", cat: "technical", keywords: ["database", "sql", "dbms"] },
-      { name: "Flutter", cat: "technical", keywords: ["flutter", "dart"] },
-      { name: "PCB Design", cat: "technical" },
-      { name: "Raspberry Pi", cat: "tool" },
-      { name: "RTOS", cat: "technical" },
-      { name: "Leadership", cat: "soft", keywords: ["led", "leadership", "managed"] },
-      { name: "Teamwork", cat: "soft", keywords: ["collaborated", "team", "coordinated"] },
-      { name: "Problem Solving", cat: "soft", keywords: ["resolved", "fixed", "implemented"] }
-    ];
-
-    function extractCleanName(text) {
-      const firstLine = text.split('\n')[0].trim();
-      let clean = firstLine.split('|')[0].split('@')[0].split(',')[0].trim();
-      return clean.split(' ').slice(0, 2).join(' '); // No emails, only name
     }
+  };
 
-    function calculateExperience(text) {
-      const lower = text.toLowerCase();
-      if (lower.includes("intern")) return "Internship Level";
-      if (lower.includes("senior") || lower.includes("lead")) return "Senior Level";
-      return "Junior Level";
+  async function parsePDF(file) {
+    const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      text += content.items.map(it => it.str).join(" ");
     }
-    function detectDomain(skills) {
-      const aeroKeywords = ["Aerodynamics", "CFD", "Flight Mechanics", "Propulsion", "CATIA", "SolidWorks", "MATLAB", "Simulink", "Avionics", "Structural Analysis"];
-      const eceKeywords = ["Embedded Systems", "VLSI", "Circuit Design", "Microcontrollers", "PCB Design"];
+    return text;
+  }
 
-      let aeroScore = skills.filter(s => aeroKeywords.includes(s)).length;
-      let eceScore = skills.filter(s => eceKeywords.includes(s)).length;
-
-      // If there is ANY aerospace skill, prioritize showing aerospace roles
-      if (aeroScore > 0) return "aerospace";
-      if (eceScore > 0) return "ece";
-      return "software";
-    }
-    // 3. MAIN ANALYSIS ENGINE
-    // 3. MAIN ANALYSIS ENGINE
-    window.runAnalysis = async function () {
-      const text = resumeTextarea.value.trim();
-      if (text.length < 10) return showToast("Please upload or paste a valid resume", "error");
-
-      loadingOverlay.style.display = 'flex';
-
-      try {
-        const cleanName = extractCleanName(text);
-        const expStatus = calculateExperience(text);
-        const extracted = [];
-
-        // Normalize text for "Worst Case" resumes (removes weird line breaks/extra spaces)
-        const normalizedText = text.replace(/[\r\n]+/g, ' ').toLowerCase();
-
-        // --- AGGRESSIVE EXTRACTION ENGINE ---
-        MASTER_SKILLS.forEach(obj => {
-          const terms = obj.keywords || [obj.name];
-          let found = false;
-          let totalMentions = 0;
-          let hasContextBonus = false;
-
-          terms.forEach(term => {
-            // Flexible Regex: Finds the skill even if it's trapped between commas, slashes, or symbols
-            // This handles "Java/Python/C++" or "React,Node,JS"
-            const flexibleRegex = new RegExp(`(?:^|[^a-zA-Z0-9])${term.toLowerCase()}(?:$|[^a-zA-Z0-9])`, 'g');
-            const matches = normalizedText.match(flexibleRegex);
-
-            if (matches) {
-              found = true;
-              totalMentions += matches.length;
-
-              // Context check near the match
-              const idx = normalizedText.indexOf(term.toLowerCase());
-              const context = normalizedText.substring(Math.max(0, idx - 50), Math.min(normalizedText.length, idx + 50));
-              if (context.includes('expert') || context.includes('senior') || context.includes('lead') || context.includes('pro')) {
-                hasContextBonus = true;
-              }
-            }
-          });
-
-          if (found) {
-            // Variety Scoring
-            const skillSeed = obj.name.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-            let score = 72 + (skillSeed % 12);
-            score += Math.min((totalMentions - 1) * 4, 12);
-            if (hasContextBonus) score += 10;
-
-            extracted.push({
-              name: obj.name,
-              category: obj.cat,
-              level: Math.min(97, score)
-            });
-          }
-        });
-
-        const userSkillNames = extracted.map(s => s.name);
-
-        // This checks the entire library so both CS and Aerospace roles can appear together
-        let roleMatches = ROLE_LIBRARIES.map(roleDef => {
-          const matched = roleDef.required.filter(s => userSkillNames.includes(s));
-          const score = Math.round((matched.length / roleDef.required.length) * 100);
-
-          return {
-            title: roleDef.title,
-            match_score: score,
-            required_skills: roleDef.required,
-            missing_skills: roleDef.required.filter(s => !userSkillNames.includes(s)),
-            reason: score > 50 ? "Strong Match" : "Potential Growth"
-          };
-        })
-          .filter(r => r.match_score > 5) // Only show roles where you have at least some match
-          .sort((a, b) => b.match_score - a.match_score); // Highest match first
-
-        // --- WORST CASE FALLBACK ---
-        // If no skills were found at all, give them a few basic ones so the UI doesn't break
-        if (extracted.length === 0) {
-          extracted.push({ name: "General Tech", category: "technical", level: 65 });
-          extracted.push({ name: "Documentation", category: "soft", level: 70 });
-        }
-
-        // If no roles matched, force the first role from the library to show (at 15% fit)
-        if (roleMatches.length === 0 || roleMatches[0].match_score === 0) {
-          roleMatches = [{
-            title: ROLE_LIBRARIES[0].title,
-            match_score: 15,
-            required_skills: ROLE_LIBRARIES[0].required,
-            missing_skills: ROLE_LIBRARIES[0].required,
-            reason: "Baseline Entry Level"
-          }];
-        }
-
-        const result = {
-          name: cleanName || "Professional",
-          title: roleMatches[0].title,
-          experience_years: expStatus,
-          summary: `Profile analyzed. ${extracted.length} key attributes identified.`,
-          extracted_skills: extracted,
-          role_matches: roleMatches,
-          overall_score: roleMatches[0].match_score
-        };
-
-        AnalysisStore.save(result);
-        localStorage.removeItem('cl_selected_role');
-        
-        // Use a unique key for each user
-        const userHistoryKey = `cl_history_${auth.currentUser.uid}`;
-        const currentHistory = JSON.parse(localStorage.getItem(userHistoryKey) || '[]');
-        currentHistory.push({ date: new Date().toLocaleString(), data: result });
-        localStorage.setItem(userHistoryKey, JSON.stringify(currentHistory));
-
-        setTimeout(() => { window.location.href = 'skills.html'; }, 1500);
-      } catch (err) {
-        console.error(err);
-        loadingOverlay.style.display = 'none';
-        showToast("Error analyzing resume", "error");
-      }
-    };
+  async function parseDOCX(file) {
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value;
+  }
   </script>
 </body>
 

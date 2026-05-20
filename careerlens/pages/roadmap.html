@@ -24,70 +24,88 @@
   <script src="../js/shared.js"></script>
 
   <script type="module">
-    import { auth } from "../js/firebase-config.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+  // ✅ Removed Firebase imports and logic
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Custom Auth Guard: Check for session
+    const user = JSON.parse(localStorage.getItem('cl_user'));
+    const token = localStorage.getItem('cl_token');
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-      } else {
-        initNavbar('roadmap', user);
+    if (!user || !token) {
+      window.location.href = 'login.html';
+      return;
+    }
 
-        const d = AnalysisStore.get();
-        let role = AnalysisStore.getSelectedRole();
+    // 2. Initialize Navbar
+    initNavbar('roadmap', user);
 
-        if (!d) {
-          document.getElementById('emptyGate').style.display = 'flex';
-          return;
-        }
+    // 3. Setup Logout manually
+    const logBtn = document.getElementById('logoutBtn');
+    if (logBtn) {
+      logBtn.onclick = () => {
+        localStorage.removeItem('cl_user');
+        localStorage.removeItem('cl_token');
+        localStorage.removeItem('cl_analysis');
+        localStorage.removeItem('cl_completed_steps');
+        window.location.href = '../index.html';
+      };
+    }
 
-        if (!role && d.role_matches && d.role_matches.length > 0) {
-          role = d.role_matches[0];
-          AnalysisStore.setSelectedRole(role);
-        }
+    // 4. Load Analysis and Role Data
+    const d = AnalysisStore.get();
+    let role = AnalysisStore.getSelectedRole();
 
-        if (!role) {
-          document.getElementById('emptyGate').style.display = 'flex';
-        } else {
-          render(d, role);
-        }
-      }
+    if (!d) {
+      document.getElementById('emptyGate').style.display = 'flex';
+      return;
+    }
+
+    // Default to the first match if no role was explicitly selected
+    if (!role && d.role_matches && d.role_matches.length > 0) {
+      role = d.role_matches[0];
+      AnalysisStore.setSelectedRole(role);
+    }
+
+    if (!role) {
+      document.getElementById('emptyGate').style.display = 'flex';
+    } else {
+      render(d, role);
+    }
+  });
+
+  function render(d, role) {
+    const gaps = role.missing_skills || [];
+    const steps = gaps.map((skill, i) => ({
+      week: `WEEK 0${i + 1}`,
+      topic: `Mastering ${skill}`,
+      difficulty: i === 0 ? 'Intermediate' : 'Advanced',
+      priority: 'High',
+      impact: `+${Math.round(100 / (gaps.length + 1))}% Match`,
+      description: `Mastering ${skill} is critical for ${role.title} roles. This week covers architecture and advanced usage.`,
+      resources: `Docs, Tutorials, and Hands-on labs for ${skill}.`
+    }));
+
+    steps.push({
+      week: `FINAL PHASE`,
+      topic: `Portfolio Capstone Project`,
+      difficulty: 'Expert',
+      priority: 'High',
+      impact: "Ready for Interview",
+      description: `Apply your new knowledge of ${gaps.join(', ')} to build a production-grade application for your portfolio.`,
+      resources: "Self-guided project with GitHub Deployment."
     });
 
-    function render(d, role) {
-      const gaps = role.missing_skills || [];
-      const steps = gaps.map((skill, i) => ({
-          week: `WEEK 0${i + 1}`,
-          topic: `Mastering ${skill}`,
-          difficulty: i === 0 ? 'Intermediate' : 'Advanced',
-          priority: 'High',
-          impact: `+${Math.round(100/ (gaps.length + 1))}% Match`,
-          description: `Mastering ${skill} is critical for ${role.title} roles. This week covers architecture and advanced usage.`,
-          resources: `Docs, Tutorials, and Hands-on labs for ${skill}.`
-      }));
+    const priorityConfig = {
+      high: { color: '#991b1b', bg: '#fef2f2', border: 'rgba(153,27,27,0.2)', label: 'High' },
+      medium: { color: '#92400e', bg: '#fffbeb', border: 'rgba(146,64,14,0.2)', label: 'Medium' }
+    };
 
-      steps.push({
-          week: `FINAL PHASE`,
-          topic: `Portfolio Capstone Project`,
-          difficulty: 'Expert',
-          priority: 'High',
-          impact: "Ready for Interview",
-          description: `Apply your new knowledge of ${gaps.join(', ')} to build a production-grade application for your portfolio.`,
-          resources: "Self-guided project with GitHub Deployment."
-      });
+    const completedSteps = JSON.parse(localStorage.getItem('cl_completed_steps') || '[]');
+    const query = encodeURIComponent(role.title);
 
-      const priorityConfig = {
-        high:   { color: '#991b1b', bg: '#fef2f2', border: 'rgba(153,27,27,0.2)', label: 'High' },
-        medium: { color: '#92400e', bg: '#fffbeb', border: 'rgba(146,64,14,0.2)', label: 'Medium' }
-      };
-
-      const completedSteps = JSON.parse(localStorage.getItem('cl_completed_steps') || '[]');
-      const query = encodeURIComponent(role.title);
-
-      document.getElementById('mainContent').innerHTML = `
+    document.getElementById('mainContent').innerHTML = `
         <div class="page-header">
           <div class="page-eyebrow">Step 04 — Learning Roadmap</div>
-          <h1 class="page-title">Roadmap for <em>${d.name}</em></h1>
+          <h1 class="page-title">Roadmap for <em>${d.name || 'Professional'}</em></h1>
           <p class="page-sub">Closing critical gaps to reach 100% match for <strong>${role.title}</strong>.</p>
         </div>
 
@@ -101,7 +119,7 @@
             </div>
           </div>
           <div class="rc-right">
-            ${scoreRingHTML(role.match_score, 72, 6, '#c8502a', 'match')}
+            ${scoreRingHTML(role.match_score || role.matchScore || 0, 72, 6, '#c8502a', 'match')}
           </div>
         </div>
 
@@ -111,7 +129,7 @@
             <span class="progress-count">${completedSteps.length} / ${steps.length} Tasks</span>
           </div>
           <div class="progress-track">
-            <div class="progress-fill" style="width:${steps.length ? (completedSteps.length/steps.length*100) : 0}%"></div>
+            <div class="progress-fill" style="width:${steps.length ? (completedSteps.length / steps.length * 100) : 0}%"></div>
           </div>
         </div>
 
@@ -123,7 +141,7 @@
               <div class="rm-item ${done ? 'rm-done' : ''}">
                 <div class="rm-connector"></div>
                 <div class="rm-dot" style="background:${done ? p.color : '#fff'}; border-color:${p.color}; color:${done ? '#fff' : p.color}">
-                  ${done ? '✓' : (i+1)}
+                  ${done ? '✓' : (i + 1)}
                 </div>
                 <div class="rm-body">
                   <div class="rm-meta">
@@ -145,11 +163,7 @@
         </div>
 
         <div class="roadmap-actions">
-          <!-- FIXED: Search for specific role projects on GitHub -->
           <a class="btn btn-outline" href="https://github.com/search?q=${query}+project" target="_blank">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style="margin-right:6px">
-                <path d="M7 2C4.24 2 2 4.24 2 7C2 9.21 3.43 11.08 5.41 11.74C5.66 11.78 5.75 11.63 5.75 11.5V11.05C4.36 11.35 4.07 10.38 4.07 10.38C3.84 9.8 3.51 9.65 3.51 9.65C3.06 9.34 3.54 9.35 3.54 9.35C4.04 9.39 4.3 9.87 4.3 9.87C4.74 10.63 5.46 10.41 5.75 10.28C5.79 9.96 5.92 9.74 6.06 9.62C4.95 9.49 3.78 9.06 3.78 7.14C3.78 6.59 3.98 6.15 4.3 5.8C4.25 5.67 4.07 5.16 4.35 4.47C4.35 4.47 4.77 4.34 5.73 4.99C6.13 4.88 6.56 4.82 7 4.82C7.44 4.82 7.87 4.88 8.27 4.99C9.23 4.34 9.65 4.47 9.65 4.47C9.93 5.16 9.75 5.67 9.7 5.8C10.02 6.15 10.22 6.59 10.22 7.14C10.22 9.07 9.05 9.49 7.94 9.62C8.12 9.77 8.28 10.07 8.28 10.54V11.5C8.28 11.63 8.37 11.79 8.63 11.74C10.6 11.08 12 9.21 12 7C12 4.24 9.76 2 7 2Z" fill="currentColor"/>
-            </svg>
             Search ${role.title} Projects
           </a>
           <a class="btn btn-outline" href="https://www.coursera.org/search?query=${query}" target="_blank">
@@ -166,27 +180,27 @@
           <a class="btn btn-accent" href="analyze.html">Analyze New Resume</a>
         </div>
       `;
-    }
+  }
 
-    window.toggleStep = function(i) {
-      let done = JSON.parse(localStorage.getItem('cl_completed_steps') || '[]');
-      if (done.includes(i)) done = done.filter(x => x !== i);
-      else done.push(i);
-      localStorage.setItem('cl_completed_steps', JSON.stringify(done));
-      
+  window.toggleStep = function(i) {
+    let done = JSON.parse(localStorage.getItem('cl_completed_steps') || '[]');
+    if (done.includes(i)) done = done.filter(x => x !== i);
+    else done.push(i);
+    localStorage.setItem('cl_completed_steps', JSON.stringify(done));
+
+    const d = AnalysisStore.get();
+    const role = AnalysisStore.getSelectedRole();
+    render(d, role);
+  };
+
+  window.resetProgress = function() {
+    if (confirm("Reset your learning progress?")) {
+      localStorage.removeItem('cl_completed_steps');
       const d = AnalysisStore.get();
       const role = AnalysisStore.getSelectedRole();
       render(d, role);
-    };
-
-    window.resetProgress = function() {
-      if (confirm("Reset your learning progress?")) {
-        localStorage.removeItem('cl_completed_steps');
-        const d = AnalysisStore.get();
-        const role = AnalysisStore.getSelectedRole();
-        render(d, role);
-      }
-    };
-  </script>
+    }
+  };
+</script>
 </body>
 </html>

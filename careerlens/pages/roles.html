@@ -22,33 +22,48 @@
 
   <script src="../js/shared.js"></script>
   
-  <script type="module">
-    import { auth } from "../js/firebase-config.js";
-    import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+ <script type="module">
+  // ✅ Removed Firebase imports that were causing the crash
+  const RING_COLORS = ['#c8502a', '#1d4ed8', '#2d6a4f'];
 
-    const RING_COLORS = ['#c8502a','#1d4ed8','#2d6a4f'];
+  document.addEventListener('DOMContentLoaded', () => {
+    // 1. Custom Auth Guard
+    const user = JSON.parse(localStorage.getItem('cl_user'));
+    const token = localStorage.getItem('cl_token');
 
-    onAuthStateChanged(auth, (user) => {
-      if (!user) {
-        window.location.href = 'login.html';
-      } else {
-        initNavbar('roles', user);
-        const d = AnalysisStore.get();
-        if (!d || !d.role_matches) { 
-          document.getElementById('emptyGate').style.display = 'flex'; 
-        } else {
-          render(d);
-        }
-      }
-    });
+    if (!user || !token) {
+      window.location.href = 'login.html';
+      return;
+    }
 
-    // ... (Replace your render and roleCard functions with these)
+    // 2. Initialize Navbar
+    initNavbar('roles', user);
 
-    function render(d) {
-      const topRole = d.role_matches[0];
-      const allMissing = topRole ? topRole.missing_skills : [];
+    // 3. Setup Logout manually
+    const logBtn = document.getElementById('logoutBtn');
+    if (logBtn) {
+      logBtn.onclick = () => {
+        localStorage.removeItem('cl_user');
+        localStorage.removeItem('cl_token');
+        localStorage.removeItem('cl_analysis');
+        window.location.href = '../index.html';
+      };
+    }
 
-      document.getElementById('mainContent').innerHTML = `
+    // 4. Load Analysis Data
+    const d = AnalysisStore.get();
+    if (!d || !d.role_matches) {
+      document.getElementById('emptyGate').style.display = 'flex';
+    } else {
+      render(d);
+    }
+  });
+
+  function render(d) {
+    const topRole = d.role_matches[0];
+    const allMissing = topRole ? topRole.missing_skills : [];
+
+    document.getElementById('mainContent').innerHTML = `
         <div class="page-header">
           <div class="page-eyebrow">Step 03 — Career Role Matches</div>
           <h1 class="page-title">Your matched roles</h1>
@@ -73,17 +88,17 @@
           <button class="btn btn-accent" onclick="goToRoadmap()">View Roadmap →</button>
         </div>
       `;
-    }
+  }
 
-    function roleCard(role, i) {
-      const color = RING_COLORS[i % RING_COLORS.length];
-      const selected = AnalysisStore.getSelectedRole();
-      const isSelected = selected && selected.title === role.title;
-      
-      return `
+  function roleCard(role, i) {
+    const color = RING_COLORS[i % RING_COLORS.length];
+    const selected = AnalysisStore.getSelectedRole();
+    const isSelected = selected && selected.title === role.title;
+
+    return `
         <div class="role-card-full ${isSelected ? 'role-selected' : ''}" id="rc-${i}" onclick="selectRole(${i})">
           <div class="role-card-left">
-            <div class="role-rank">#${i+1}</div>
+            <div class="role-rank">#${i + 1}</div>
             <div class="role-card-body">
               <div class="role-card-title">${role.title}</div>
               <div class="role-skill-sections">
@@ -105,33 +120,32 @@
             </div>
           </div>
           <div class="role-card-right">
-            <!-- Animated Score Ring Fixed -->
-            ${scoreRingHTML(role.match_score, 80, 6, color, 'match')}
+           ${scoreRingHTML(role.match_score || role.matchScore || 0, 80, 6, color, 'match')}
             <div class="role-select-btn" id="rsb-${i}">
               ${isSelected ? '✓ Selected' : 'Select Role'}
             </div>
           </div>
         </div>`;
-    }
+  }
 
-    window.selectRole = function(i) {
-      const d = AnalysisStore.get();
-      const role = d.role_matches[i];
-      AnalysisStore.setSelectedRole(role);
+  window.selectRole = function(i) {
+    const d = AnalysisStore.get();
+    const role = d.role_matches[i];
+    AnalysisStore.setSelectedRole(role);
 
-      document.querySelectorAll('.role-card-full').forEach((el, idx) => {
-        el.classList.toggle('role-selected', idx === i);
-        const rsb = document.getElementById('rsb-' + idx);
-        if (rsb) rsb.textContent = idx === i ? '✓ Selected' : 'Select Role';
-      });
-      showToast('Role selected: ' + role.title, 'success');
-    };
+    document.querySelectorAll('.role-card-full').forEach((el, idx) => {
+      el.classList.toggle('role-selected', idx === i);
+      const rsb = document.getElementById('rsb-' + idx);
+      if (rsb) rsb.textContent = idx === i ? '✓ Selected' : 'Select Role';
+    });
+    showToast('Role selected: ' + role.title, 'success');
+  };
 
-    window.goToRoadmap = function() {
-        const sel = AnalysisStore.getSelectedRole();
-        if(!sel) return showToast("Please select a role first", "error");
-        window.location.href = 'roadmap.html';
-    }
-  </script>
+  window.goToRoadmap = function() {
+    const sel = AnalysisStore.getSelectedRole();
+    if (!sel) return showToast("Please select a role first", "error");
+    window.location.href = 'roadmap.html';
+  }
+</script>
 </body>
 </html>

@@ -55,12 +55,17 @@ function showToast(msg, type = 'default', duration = 3000) {
 /* ── NAVBAR INIT ─── */
 function initNavbar(activePage, user = null) {
   const base = getBasePath();
+  // Ensure we have the user from localStorage if not passed
+  const storedUser = JSON.parse(localStorage.getItem('cl_user'));
+  const finalUser = user || storedUser;
+
   let firstChar = 'U';
   let avatarBg = '#c8502a';
   let displayName = 'User';
 
-  if (user) {
-    displayName = user.displayName || user.email.split('@')[0];
+  if (finalUser) {
+    // Backend returns 'name', not 'displayName'
+    displayName = finalUser.name || finalUser.email.split('@')[0];
     firstChar = displayName.charAt(0).toUpperCase();
     avatarBg = getAvatarColor(firstChar);
   }
